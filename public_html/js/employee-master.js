@@ -52,10 +52,16 @@ $(document).ready(function() {
     });
     
     // データを読み込み
-    function loadData() {
-        currentEmployees = dataManager.getEmployees();
-        businessTypes = dataManager.getBusinessTypes();
-        renderEmployeeList();
+    async function loadData() {
+        try {
+            const apiEmployees = await apiClient.getEmployees();
+            currentEmployees = apiEmployees.map(emp => dataConverter.employeeFromApi(emp));
+            businessTypes = dataManager.getBusinessTypes(); // 業務区分は従来通り
+            renderEmployeeList();
+        } catch (error) {
+            console.error('従業員データ取得エラー:', error);
+            alert('従業員データの取得に失敗しました。');
+        }
     }
     
     // 従業員一覧を描画
@@ -204,13 +210,18 @@ $(document).ready(function() {
     }
     
     // 従業員削除
-    function deleteEmployee(index) {
+    async function deleteEmployee(index) {
         const employee = currentEmployees[index];
         if (confirm(`${employee.name}さんを削除しますか？\nこの操作は取り消せません。`)) {
-            currentEmployees.splice(index, 1);
-            dataManager.saveEmployees(currentEmployees);
-            renderEmployeeList();
-            showSuccess('従業員を削除しました。');
+            try {
+                await apiClient.deleteEmployee(employee.code);
+                currentEmployees.splice(index, 1);
+                renderEmployeeList();
+                showSuccess('従業員を削除しました。');
+            } catch (error) {
+                console.error('従業員削除エラー:', error);
+                showError('従業員削除に失敗しました。');
+            }
         }
     }
     
@@ -329,27 +340,18 @@ $(document).ready(function() {
     }
     
     // 従業員保存
-    function saveEmployee() {
+    async function saveEmployee() {
         // 入力値取得
         const code = $('#emp-code').val().trim();
         const name = $('#emp-name').val().trim();
         const password = $('#emp-password').val().trim();
-        const maxHoursPerDay = parseInt($('#max-hours-per-day').val());
-        const maxDaysPerWeek = parseInt($('#max-days-per-week').val());
+        const maxHoursPerDay = parseInt($('#max-hours-per-day').val()) || 8;
+        const maxDaysPerWeek = parseInt($('#max-days-per-week').val()) || 5;
         
         // バリデーション
         if (!code || !name || !password) {
             showError('全ての必須項目を入力してください。');
             return;
-        }
-        
-        // 従業員コードの重複チェック（新規の場合）
-        if (editingIndex === -1) {
-            const existingEmployee = currentEmployees.find(emp => emp.code === code);
-            if (existingEmployee) {
-                showError('この従業員コードは既に使用されています。');
-                return;
-            }
         }
         
         // 業務区分を取得
@@ -407,19 +409,27 @@ $(document).ready(function() {
         };
         
         // 保存
-        if (editingIndex === -1) {
-            // 新規追加
-            currentEmployees.push(employeeData);
-            showSuccess('新規従業員を追加しました。');
-        } else {
-            // 更新
-            currentEmployees[editingIndex] = employeeData;
-            showSuccess('従業員情報を更新しました。');
+        try {
+            // API形式に変換
+            const apiEmployee = dataConverter.employeeToApi(employeeData);
+            
+            if (editingIndex === -1) {
+                // 新規追加
+                await apiClient.saveEmployee(apiEmployee);
+                showSuccess('新規従業員を追加しました。');
+            } else {
+                // 更新
+                await apiClient.saveEmployee(apiEmployee);
+                showSuccess('従業員情報を更新しました。');
+            }
+            
+            // データを再読み込み
+            await loadData();
+            closeModal();
+        } catch (error) {
+            console.error('従業員保存エラー:', error);
+            showError('従業員の保存に失敗しました。');
         }
-        
-        dataManager.saveEmployees(currentEmployees);
-        renderEmployeeList();
-        closeModal();
     }
     
     // 成功メッセージ表示
