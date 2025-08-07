@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>従業員マスタ デバッグ</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/api-client.js"></script>
+</head>
+<body>
+    <h1>従業員マスタ デバッグ</h1>
+    <button id="test-api">API直接テスト</button>
+    <button id="test-conversion">データ変換テスト</button>
+    <pre id="results"></pre>
+
+    <script>
+        $('#test-api').click(async function() {
+            try {
+                console.log('API直接テスト開始...');
+                const employees = await apiClient.getEmployees();
+                console.log('API結果:', employees);
+                $('#results').text('API成功:\n' + JSON.stringify(employees, null, 2));
+            } catch (error) {
+                console.error('APIエラー:', error);
+                $('#results').text('APIエラー:\n' + error.message + '\n' + error.stack);
+            }
+        });
+
+        $('#test-conversion').click(async function() {
+            try {
+                const employees = await apiClient.getEmployees();
+                console.log('変換前データ:', employees);
+                
+                const converted = employees.map((emp, index) => {
+                    try {
+                        console.log(`従業員${index} 変換開始:`, emp);
+                        const result = dataConverter.employeeFromApi(emp);
+                        console.log(`従業員${index} 変換成功:`, result);
+                        return result;
+                    } catch (convError) {
+                        console.error(`従業員${index} 変換エラー:`, convError, emp);
+                        return { error: convError.message, original: emp };
+                    }
+                });
+                
+                $('#results').text('変換結果:\n' + JSON.stringify(converted, null, 2));
+            } catch (error) {
+                console.error('全体エラー:', error);
+                $('#results').text('全体エラー:\n' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
