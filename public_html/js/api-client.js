@@ -72,8 +72,8 @@ class ApiClient {
         return this.get('/employees.php');
     }
 
-    async saveEmployee(employee) {
-        if (employee.employee_code) {
+    async saveEmployee(employee, isUpdate = false) {
+        if (isUpdate) {
             return this.put('/employees.php', employee);
         } else {
             return this.post('/employees.php', employee);

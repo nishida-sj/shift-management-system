@@ -439,11 +439,11 @@ $(document).ready(function() {
             
             if (editingIndex === -1) {
                 // 新規追加
-                await apiClient.saveEmployee(apiEmployee);
+                await apiClient.saveEmployee(apiEmployee, false);
                 showSuccess('新規従業員を追加しました。');
             } else {
                 // 更新
-                await apiClient.saveEmployee(apiEmployee);
+                await apiClient.saveEmployee(apiEmployee, true);
                 showSuccess('従業員情報を更新しました。');
             }
             
