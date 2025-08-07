@@ -103,6 +103,11 @@ function validateDate($year, $month, $day = null) {
 
 // 時間検証
 function validateTime($time) {
+    // null や空文字の場合は検証をスキップ
+    if (empty($time)) {
+        return;
+    }
+    
     if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $time)) {
         sendErrorResponse('無効な時間形式です（HH:MM）');
     }

@@ -342,7 +342,15 @@ class DataConverter {
         if (!conditions?.weeklySchedule) return null;
         const firstDay = Object.values(conditions.weeklySchedule)[0];
         if (firstDay && firstDay.length > 0) {
-            return firstDay[0].split('-')[0];
+            const timeRange = firstDay[0];
+            // 終日や特殊な値の場合のデフォルト処理
+            if (timeRange === '終日' || timeRange === 'all-day') {
+                return '08:00';
+            }
+            if (timeRange.includes('-')) {
+                return timeRange.split('-')[0];
+            }
+            return '09:00'; // デフォルト値
         }
         return null;
     }
@@ -351,7 +359,15 @@ class DataConverter {
         if (!conditions?.weeklySchedule) return null;
         const firstDay = Object.values(conditions.weeklySchedule)[0];
         if (firstDay && firstDay.length > 0) {
-            return firstDay[0].split('-')[1];
+            const timeRange = firstDay[0];
+            // 終日や特殊な値の場合のデフォルト処理
+            if (timeRange === '終日' || timeRange === 'all-day') {
+                return '17:00';
+            }
+            if (timeRange.includes('-')) {
+                return timeRange.split('-')[1];
+            }
+            return '17:00'; // デフォルト値
         }
         return null;
     }
