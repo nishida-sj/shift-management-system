@@ -207,30 +207,60 @@ $(document).ready(function() {
     }
     
     // 従業員編集
-    function editEmployee(index) {
+    async function editEmployee(index) {
         const employee = currentEmployees[index];
         editingIndex = index;
         
-        openModal('従業員情報編集');
-        
-        $('#emp-code').val(employee.code).prop('readonly', true);
-        $('#emp-name').val(employee.name);
-        $('#emp-password').val(employee.password);
-        $('#max-hours-per-day').val(employee.conditions.maxHoursPerDay);
-        $('#max-days-per-week').val(employee.conditions.maxDaysPerWeek);
-        
-        // 業務区分を設定
-        $('#business-types-container').empty();
-        if (employee.businessTypes && employee.businessTypes.length > 0) {
-            employee.businessTypes.forEach(bt => {
-                addBusinessTypeRow(bt.code, bt.isMain);
-            });
-        } else {
-            addBusinessTypeRow();
+        try {
+            // 詳細データをAPIから取得（パスワード込み）
+            const detailEmployee = await apiClient.getEmployee(employee.code, true);
+            const fullEmployee = dataConverter.employeeFromApi(detailEmployee);
+            
+            openModal('従業員情報編集');
+            
+            $('#emp-code').val(fullEmployee.code).prop('readonly', true);
+            $('#emp-name').val(fullEmployee.name);
+            $('#emp-password').val(detailEmployee.password || ''); // APIから直接取得
+            $('#max-hours-per-day').val(fullEmployee.conditions.maxHoursPerDay || 8);
+            $('#max-days-per-week').val(fullEmployee.conditions.maxDaysPerWeek || 5);
+            
+            // 業務区分を設定
+            $('#business-types-container').empty();
+            if (fullEmployee.businessTypes && fullEmployee.businessTypes.length > 0) {
+                fullEmployee.businessTypes.forEach(bt => {
+                    addBusinessTypeRow(bt.code, bt.isMain);
+                });
+            } else {
+                addBusinessTypeRow();
+            }
+            
+            // 曜日別スケジュールを設定
+            initializeWeeklySchedule(fullEmployee.conditions.weeklySchedule);
+            
+        } catch (error) {
+            console.error('従業員詳細取得エラー:', error);
+            // エラー時は既存データで編集画面を開く
+            openModal('従業員情報編集');
+            
+            $('#emp-code').val(employee.code).prop('readonly', true);
+            $('#emp-name').val(employee.name);
+            $('#emp-password').val(''); // パスワードは空に
+            $('#max-hours-per-day').val(employee.conditions.maxHoursPerDay || 8);
+            $('#max-days-per-week').val(employee.conditions.maxDaysPerWeek || 5);
+            
+            $('#business-types-container').empty();
+            if (employee.businessTypes && employee.businessTypes.length > 0) {
+                employee.businessTypes.forEach(bt => {
+                    addBusinessTypeRow(bt.code, bt.isMain);
+                });
+            } else {
+                addBusinessTypeRow();
+            }
+            
+            initializeWeeklySchedule(employee.conditions.weeklySchedule);
+            
+            showError('従業員詳細の取得に一部失敗しました。パスワードは空になっています。');
         }
-        
-        // 曜日別スケジュールを設定
-        initializeWeeklySchedule(employee.conditions.weeklySchedule);
     }
     
     // 従業員削除

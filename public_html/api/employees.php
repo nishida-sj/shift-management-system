@@ -30,20 +30,45 @@ switch ($method) {
 }
 
 function handleGet($db) {
+    $employee_code = $_GET['employee_code'] ?? null;
+    $include_password = $_GET['include_password'] ?? false;
+    
     try {
-        $stmt = $db->query("SELECT * FROM employees ORDER BY employee_code");
-        $employees = $stmt->fetchAll();
-        
-        // JSON形式の available_days をパース
-        foreach ($employees as &$employee) {
+        if ($employee_code) {
+            // 個別従業員取得（編集用）
+            $stmt = $db->prepare("SELECT * FROM employees WHERE employee_code = :employee_code");
+            $stmt->execute(['employee_code' => $employee_code]);
+            $employee = $stmt->fetch();
+            
+            if (!$employee) {
+                sendErrorResponse('指定された従業員が見つかりません', 404);
+            }
+            
             if ($employee['available_days']) {
                 $employee['available_days'] = json_decode($employee['available_days'], true);
             }
-            // パスワードは返さない
-            unset($employee['password']);
+            
+            // 編集用の場合はパスワードも返す（管理者のみ）
+            if (!$include_password) {
+                unset($employee['password']);
+            }
+            
+            sendJsonResponse($employee);
+        } else {
+            // 全従業員取得（一覧用）
+            $stmt = $db->query("SELECT * FROM employees ORDER BY employee_code");
+            $employees = $stmt->fetchAll();
+            
+            foreach ($employees as &$employee) {
+                if ($employee['available_days']) {
+                    $employee['available_days'] = json_decode($employee['available_days'], true);
+                }
+                // 一覧表示時はパスワードは返さない
+                unset($employee['password']);
+            }
+            
+            sendJsonResponse($employees);
         }
-        
-        sendJsonResponse($employees);
     } catch (PDOException $e) {
         error_log('Employee fetch error: ' . $e->getMessage());
         sendErrorResponse('従業員データの取得に失敗しました', 500);

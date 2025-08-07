@@ -72,6 +72,13 @@ class ApiClient {
         return this.get('/employees.php');
     }
 
+    async getEmployee(employee_code, includePassword = false) {
+        return this.get('/employees.php', { 
+            employee_code, 
+            include_password: includePassword 
+        });
+    }
+
     async saveEmployee(employee, isUpdate = false) {
         if (isUpdate) {
             return this.put('/employees.php', employee);
