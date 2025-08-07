@@ -3,24 +3,34 @@ $(document).ready(function() {
     let eventMaster = [];
     let monthlyEvents = {};
     
+    console.log('月間行事予定: ページ読み込み開始');
+    console.log('apiClient利用可能:', typeof apiClient !== 'undefined');
+    console.log('dataConverter利用可能:', typeof dataConverter !== 'undefined');
+    
     // 初期表示
-    loadData();
-    renderCalendar();
-    renderEventMasterList();
+    async function initialize() {
+        await loadData();
+        renderCalendar();
+        renderEventMasterList();
+    }
+    
+    initialize();
     
     // 月移動ボタン
-    $('#prev-month').on('click', function() {
+    $('#prev-month').on('click', async function() {
         saveCurrentMonth();
         currentDate.setMonth(currentDate.getMonth() - 1);
-        loadData();
+        await loadData();
         renderCalendar();
+        renderEventMasterList();
     });
     
-    $('#next-month').on('click', function() {
+    $('#next-month').on('click', async function() {
         saveCurrentMonth();
         currentDate.setMonth(currentDate.getMonth() + 1);
-        loadData();
+        await loadData();
         renderCalendar();
+        renderEventMasterList();
     });
     
     // 保存ボタン
@@ -37,11 +47,34 @@ $(document).ready(function() {
     });
     
     // データ読み込み
-    function loadData() {
-        eventMaster = dataManager.getEvents();
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        monthlyEvents = dataManager.getMonthlyEvents(year, month);
+    async function loadData() {
+        try {
+            console.log('月間行事予定: データ読み込み開始');
+            
+            // APIから行事マスタを取得
+            const apiEvents = await apiClient.getEvents();
+            eventMaster = apiEvents.map(event => dataConverter.eventFromApi(event));
+            console.log('月間行事予定: 取得した行事数:', eventMaster.length);
+            eventMaster.forEach(event => {
+                console.log(`  - ${event.id}: ${event.name}`);
+            });
+            
+            // 月間行事予定はlocalStorageから取得（API未実装のため）
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            monthlyEvents = dataManager.getMonthlyEvents(year, month);
+            
+        } catch (error) {
+            console.error('月間行事予定: データ取得エラー:', error);
+            
+            // エラー時はフォールバック
+            eventMaster = dataManager.getEvents();
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            monthlyEvents = dataManager.getMonthlyEvents(year, month);
+            
+            showError('行事データの取得に失敗しました。ローカルデータを使用します。');
+        }
     }
     
     // 現在の月のデータを保存
