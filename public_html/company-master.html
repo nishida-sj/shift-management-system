@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム - 会社マスタ</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/data-manager.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>シフト管理システム - 会社マスタ</h1>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h2 style="color: #2c3e50;">会社情報設定</h2>
+                <a href="admin.html" class="btn btn-primary">戻る</a>
+            </div>
+
+            <div id="success-message" class="alert alert-success" style="display: none;"></div>
+            <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+
+            <form id="company-form">
+                <div class="form-group">
+                    <label for="company-name">会社名 <span style="color: red;">*</span></label>
+                    <input type="text" id="company-name" class="form-control" required placeholder="株式会社○○○">
+                </div>
+
+                <div class="form-group">
+                    <label for="closing-date">締め日 <span style="color: red;">*</span></label>
+                    <select id="closing-date" class="form-control" required>
+                        <option value="">選択してください</option>
+                        <option value="end-of-month">月末</option>
+                        <option value="5">毎月5日</option>
+                        <option value="10">毎月10日</option>
+                        <option value="15">毎月15日</option>
+                        <option value="20">毎月20日</option>
+                        <option value="25">毎月25日</option>
+                    </select>
+                    <small class="form-text text-muted">給与締め日を選択してください</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="manager-name">責任者名 <span style="color: red;">*</span></label>
+                    <input type="text" id="manager-name" class="form-control" required placeholder="山田 太郎">
+                </div>
+
+                <div class="form-group">
+                    <label for="manager-contact">責任者連絡先 <span style="color: red;">*</span></label>
+                    <input type="text" id="manager-contact" class="form-control" required placeholder="090-1234-5678 または yamada@company.co.jp">
+                    <small class="form-text text-muted">電話番号またはメールアドレスを入力してください</small>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <button type="submit" class="btn btn-success" style="margin-right: 10px;">
+                        会社情報を保存
+                    </button>
+                    <button type="button" id="reset-btn" class="btn btn-secondary">
+                        リセット
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3 style="color: #2c3e50; margin-bottom: 20px;">現在の会社情報</h3>
+            <div id="current-company-info" style="background-color: #f8f9fa; border-radius: 5px; padding: 20px;">
+                <div id="company-display">
+                    <p style="color: #666; text-align: center; font-style: italic;">
+                        会社情報が設定されていません
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="color: #2c3e50; margin-bottom: 20px;">会社マスタについて</h3>
+            <div style="font-size: 14px; color: #555; line-height: 1.8;">
+                <h4>設定項目</h4>
+                <ul>
+                    <li><strong>会社名:</strong> シフト表の印刷時やヘッダーに表示される会社名</li>
+                    <li><strong>締め日:</strong> 給与計算期間の区切り日（出勤統計の計算に使用）</li>
+                    <li><strong>責任者名:</strong> シフト管理の責任者名</li>
+                    <li><strong>責任者連絡先:</strong> 緊急時の連絡先（電話番号またはメールアドレス）</li>
+                </ul>
+                
+                <h4 style="margin-top: 20px;">締め日について</h4>
+                <ul>
+                    <li><strong>月末:</strong> 毎月1日～月末日までが1つの期間</li>
+                    <li><strong>指定日:</strong> 前月の指定日翌日～当月指定日までが1つの期間</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/company-master.js"></script>
+</body>
+</html>

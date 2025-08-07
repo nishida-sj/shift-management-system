@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム - 確定シフト確認</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>シフト管理システム - 確定シフト確認</h1>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 id="current-user" style="color: #2c3e50;">従業員: </h2>
+                <div>
+                    <a href="input.html" class="btn btn-primary" style="margin-right: 10px;">希望入力画面</a>
+                    <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h3 id="current-month" style="color: #34495e;">2024年8月の確定シフト</h3>
+                <div>
+                    <button id="prev-month" class="btn btn-secondary">前月</button>
+                    <button id="next-month" class="btn btn-secondary">次月</button>
+                </div>
+            </div>
+
+            <div id="shift-status" class="alert" style="display: none; margin-bottom: 20px;"></div>
+
+            <div id="shift-table-container" style="overflow-x: auto;">
+                <!-- シフト表はJavaScriptで動的生成 -->
+            </div>
+
+            <div style="margin-top: 30px;" id="summary-section">
+                <h4 style="color: #2c3e50; margin-bottom: 20px;">勤務統計</h4>
+                <div id="employee-summary">
+                    <!-- 統計情報はJavaScriptで生成 -->
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;" id="notes-section" style="display: none;">
+                <h4 style="color: #2c3e50; margin-bottom: 10px;">備考</h4>
+                <div id="shift-notes" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
+                    <!-- 備考はJavaScriptで表示 -->
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="color: #2c3e50; margin-bottom: 20px;">表示説明</h3>
+            <div style="font-size: 14px; color: #555; line-height: 1.8;">
+                <p><strong>・勤務時間表示：</strong> あなたの確定したシフト時間が表示されます</p>
+                <p><strong>・休み：</strong> 「-」と表示されます</p>
+                <p><strong>・未確定：</strong> まだシフトが確定していない場合は「未確定」と表示されます</p>
+                <p><strong>・土日祝日：</strong> 背景色が薄いピンクで表示されます</p>
+                <p><strong>・月移動：</strong> 前月/次月ボタンで他の月のシフトを確認できます</p>
+                <p><strong>・赤字表示：</strong> あなたの希望条件と異なる時間帯の場合、赤字で表示されます</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data-manager.js"></script>
+    <script src="js/employee-shift-view.js"></script>
+</body>
+</html>

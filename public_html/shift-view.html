@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム - 確定シフト閲覧</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/data-manager.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>シフト管理システム - 確定シフト閲覧</h1>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: #2c3e50;">確定シフト閲覧</h2>
+                <a href="admin.html" class="btn btn-primary">戻る</a>
+                <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h3 id="current-month" style="color: #34495e;">2024年8月の確定シフト</h3>
+                <div>
+                    <button id="prev-month" class="btn btn-secondary">前月</button>
+                    <button id="next-month" class="btn btn-secondary">次月</button>
+                </div>
+            </div>
+
+            <div id="shift-status" class="alert" style="display: none; margin-bottom: 20px;"></div>
+
+            <div style="margin-bottom: 20px; text-align: center;">
+                <button id="print-btn" class="btn btn-primary">印刷</button>
+                <button id="export-csv-btn" class="btn btn-success">CSVエクスポート</button>
+            </div>
+
+            <div id="shift-table-container" style="overflow-x: auto;">
+                <!-- シフト表はJavaScriptで動的生成 -->
+            </div>
+
+            <div style="margin-top: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h4 style="color: #2c3e50;">従業員別集計</h4>
+                </div>
+                <div id="summary-table-container">
+                    <!-- 集計テーブルはJavaScriptで生成 -->
+                </div>
+            </div>
+
+            <div id="notes-section" style="margin-top: 30px; display: none;">
+                <h4 style="color: #2c3e50; margin-bottom: 15px;">備考</h4>
+                <div id="shift-notes" style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; border: 1px solid #ddd;">
+                    <!-- 備考はJavaScriptで表示 -->
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="color: #2c3e50; margin-bottom: 20px;">表示について</h3>
+            <div style="font-size: 14px; color: #555; line-height: 1.8;">
+                <p><strong>・確定済みシフト：</strong> 管理者が確定したシフトが表示されます</p>
+                <p><strong>・下書き状态：</strong> まだ確定されていないシフトは「下書き状態」と表示されます</p>
+                <p><strong>・休み：</strong> 「-」と表示されます</p>
+                <p><strong>・土日祝日：</strong> 背景色が薄いピンクで表示されます</p>
+                <p><strong>・条件違反：</strong> 赤字で表示される場合は、従業員の条件に合わない配置です</p>
+                <p><strong>・印刷：</strong> ブラウザの印刷機能でシフト表を印刷できます</p>
+                <p><strong>・CSVエクスポート：</strong> Excelで開ける形式でデータをダウンロードできます</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/shift-view.js"></script>
+</body>
+</html>

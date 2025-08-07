@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム - 従業員マスタ</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/data-manager.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>シフト管理システム - 従業員マスタ</h1>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: #2c3e50;">従業員マスタ管理</h2>
+                <div>
+                    <button id="add-employee-btn" class="btn btn-success" style="margin-right: 10px;">新規追加</button>
+                    <a href="admin.html" class="btn btn-primary">戻る</a>
+                    <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+                </div>
+            </div>
+
+            <div id="success-message" class="alert alert-success" style="display: none;"></div>
+            <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+
+            <div id="employee-list">
+                <!-- 従業員一覧はJavaScriptで生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 従業員編集モーダル -->
+    <div id="employee-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 600px; max-height: 90%; overflow-y: auto;">
+            <h3 id="modal-title" style="margin-bottom: 20px;">従業員情報編集</h3>
+            
+            <form id="employee-form">
+                <div class="form-group">
+                    <label for="emp-code">従業員コード</label>
+                    <input type="text" id="emp-code" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="emp-name">氏名</label>
+                    <input type="text" id="emp-name" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>業務区分</label>
+                    <div id="business-types-container">
+                        <!-- 業務区分はJavaScriptで動的生成 -->
+                    </div>
+                    <button type="button" id="add-business-type-btn" class="btn btn-primary">業務区分追加</button>
+                </div>
+
+                <div class="form-group">
+                    <label for="emp-password">パスワード</label>
+                    <input type="password" id="emp-password" class="form-control" required>
+                </div>
+
+                <h4 style="margin: 20px 0 10px 0; color: #2c3e50;">希望条件（年間通しての固定条件）</h4>
+                
+                <div class="form-group">
+                    <label>曜日別出勤可能時間</label>
+                    <div id="weekly-schedule-container">
+                        <!-- 曜日別時間設定はJavaScriptで動的生成 -->
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 20px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="max-hours-per-day">1日最大勤務時間</label>
+                        <input type="number" id="max-hours-per-day" class="form-control" min="1" max="12" required>
+                    </div>
+
+                    <div class="form-group" style="flex: 1;">
+                        <label for="max-days-per-week">週最大勤務日数</label>
+                        <input type="number" id="max-days-per-week" class="form-control" min="1" max="7" required>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <button type="submit" class="btn btn-success" style="margin-right: 10px;">保存</button>
+                    <button type="button" id="cancel-btn" class="btn btn-secondary">キャンセル</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/employee-master.js"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム - 管理者メニュー</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/data-manager.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>シフト管理システム - 管理者メニュー</h1>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h2 id="current-user" style="color: #2c3e50;">管理者: admin</h2>
+                <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <!-- マスタ管理 -->
+                <div class="card" style="background-color: #ecf0f1;">
+                    <h3 style="color: #2c3e50; margin-bottom: 20px;">マスタ管理</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <a href="company-master.html" class="btn btn-primary">会社マスタ</a>
+                        <a href="employee-master.html" class="btn btn-primary">従業員マスタ</a>
+                        <a href="business-type-master.html" class="btn btn-primary">業務区分マスタ</a>
+                        <a href="event-master.html" class="btn btn-primary">行事マスタ</a>
+                        <a href="employee-order-master.html" class="btn btn-primary">従業員並び順マスタ</a>
+                        <a href="shift-conditions.html" class="btn btn-primary">時間帯マスタ・シフト条件設定</a>
+                    </div>
+                </div>
+
+                <!-- シフト管理 -->
+                <div class="card" style="background-color: #e8f5e8;">
+                    <h3 style="color: #2c3e50; margin-bottom: 20px;">シフト管理</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <a href="monthly-events.html" class="btn btn-success">月間行事予定</a>
+                        <a href="shift-create.html" class="btn btn-success">シフト作成・編集</a>
+                        <a href="shift-view.html" class="btn btn-success">確定シフト閲覧</a>
+                    </div>
+                </div>
+
+                <!-- 従業員機能 -->
+                <div class="card" style="background-color: #fff3cd;">
+                    <h3 style="color: #2c3e50; margin-bottom: 20px;">従業員機能</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <a href="input.html" class="btn btn-secondary">休み希望入力</a>
+                        <a href="result.html" class="btn btn-secondary">シフト確認</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="color: #2c3e50; margin-bottom: 20px;">システム概要</h3>
+            <div style="font-size: 14px; color: #555; line-height: 1.8;">
+                <h4>システムの流れ</h4>
+                <ol>
+                    <li><strong>行事マスタ設定：</strong> 行事名と必要人数・時間帯を登録</li>
+                    <li><strong>月間行事予定：</strong> 各日に行事を割り当て</li>
+                    <li><strong>従業員の希望入力：</strong> 休み希望・希望時間帯を入力</li>
+                    <li><strong>シフト自動作成：</strong> 条件に基づいて自動でシフトを組む</li>
+                    <li><strong>個別修正：</strong> 必要に応じて手動で調整</li>
+                    <li><strong>確定・印刷：</strong> シフトを確定して印刷</li>
+                </ol>
+                
+                <h4 style="margin-top: 20px;">業務区分</h4>
+                <ul>
+                    <li><strong>事務業務：</strong> デスクワーク中心の業務</li>
+                    <li><strong>調理業務：</strong> キッチンでの調理・準備業務</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

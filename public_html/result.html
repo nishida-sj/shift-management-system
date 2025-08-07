@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム - 確定シフト表示</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>シフト管理システム - 確定シフト表示</h1>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 id="current-user" style="color: #2c3e50;">管理者メニュー</h2>
+                <div>
+                    <a href="input.html" class="btn btn-primary" style="margin-right: 10px;">希望入力画面</a>
+                    <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h3 id="current-month" style="color: #34495e;">2024年8月の確定シフト</h3>
+                <div>
+                    <button id="prev-month" class="btn btn-secondary">前月</button>
+                    <button id="next-month" class="btn btn-secondary">次月</button>
+                </div>
+            </div>
+
+            <div id="shift-table-container" style="overflow-x: auto;">
+                <!-- シフト表はJavaScriptで動的生成 -->
+            </div>
+
+            <div style="margin-top: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h4 style="color: #2c3e50;">従業員別集計</h4>
+                    <button id="export-btn" class="btn btn-success">CSVエクスポート</button>
+                </div>
+                <div id="summary-table-container">
+                    <!-- 集計テーブルはJavaScriptで生成 -->
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="color: #2c3e50; margin-bottom: 20px;">表示説明</h3>
+            <div style="font-size: 14px; color: #555; line-height: 1.8;">
+                <p><strong>・勤務時間表示：</strong> 各従業員の確定したシフト時間が表示されます</p>
+                <p><strong>・休み：</strong> 「休」と表示されます</p>
+                <p><strong>・未確定：</strong> 「-」と表示されます</p>
+                <p><strong>・土日祝日：</strong> 背景色が薄いピンクで表示されます</p>
+                <p><strong>・月移動：</strong> 前月/次月ボタンで他の月のシフトを確認できます</p>
+                <p><strong>・CSVエクスポート：</strong> 表示中の月のシフトデータをCSVファイルでダウンロードできます</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/result.js"></script>
+</body>
+</html>

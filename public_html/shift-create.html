@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム - シフト作成・編集</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/data-manager.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>シフト管理システム - シフト作成・編集</h1>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: #2c3e50;">シフト作成・編集</h2>
+                <a href="admin.html" class="btn btn-primary">戻る</a>
+                <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h3 id="current-month" style="color: #34495e;">2024年8月のシフト</h3>
+                <div>
+                    <button id="prev-month" class="btn btn-secondary">前月</button>
+                    <button id="next-month" class="btn btn-secondary">次月</button>
+                </div>
+            </div>
+
+            <div id="shift-status" class="alert" style="display: none; margin-bottom: 20px;"></div>
+            <div id="success-message" class="alert alert-success" style="display: none;"></div>
+            <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+
+            <!-- 操作ボタン -->
+            <div style="margin-bottom: 30px; text-align: center;">
+                <button id="auto-create-btn" class="btn btn-success" style="margin-right: 10px;">
+                    シフト自動作成
+                </button>
+                <button id="save-draft-btn" class="btn btn-primary" style="margin-right: 10px;">
+                    下書き保存
+                </button>
+                <button id="confirm-shift-btn" class="btn btn-success" style="margin-right: 10px;">
+                    シフト確定
+                </button>
+                <button id="unconfirm-shift-btn" class="btn btn-secondary" style="margin-right: 10px; display: none;">
+                    確定解除
+                </button>
+                <button id="print-preview-btn" class="btn btn-primary" style="display: none;">
+                    印刷プレビュー
+                </button>
+            </div>
+
+            <!-- 出勤統計 -->
+            <div style="margin-bottom: 30px;">
+                <h3 style="color: #2c3e50; margin-bottom: 15px;">出勤統計</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button id="show-month-end-stats" class="btn btn-secondary">月末まで</button>
+                    <button id="show-closing-date-stats" class="btn btn-secondary">月初から締め日まで</button>
+                </div>
+                <div id="attendance-stats" style="display: none; background-color: #f8f9fa; border-radius: 5px; padding: 15px; overflow-x: auto;">
+                    <!-- 統計表はJavaScriptで動的生成 -->
+                </div>
+            </div>
+
+            <!-- シフト表 -->
+            <div id="shift-table-container" style="overflow-x: auto;">
+                <!-- シフト表はJavaScriptで動的生成 -->
+            </div>
+
+            <!-- 備考欄 -->
+            <div style="margin-top: 30px;">
+                <h4 style="color: #2c3e50; margin-bottom: 15px;">備考</h4>
+                <textarea id="shift-notes" class="form-control" rows="3" placeholder="シフトに関する備考を入力してください"></textarea>
+                <button id="save-notes-btn" class="btn btn-primary" style="margin-top: 10px;">備考保存</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="color: #2c3e50; margin-bottom: 20px;">シフト作成について</h3>
+            <div style="font-size: 14px; color: #555; line-height: 1.8;">
+                <h4>自動作成の流れ</h4>
+                <ol>
+                    <li><strong>行事予定確認：</strong> 月間行事予定から各日の必要人数を判定</li>
+                    <li><strong>従業員希望考慮：</strong> 休み希望・希望時間帯を考慮</li>
+                    <li><strong>条件チェック：</strong> 各従業員の固定条件（勤務日数制限等）をチェック</li>
+                    <li><strong>自動配置：</strong> 条件が合う従業員を自動配置</li>
+                    <li><strong>条件不一致：</strong> 条件が合わない日はスキップして次の日を処理</li>
+                </ol>
+                
+                <h4 style="margin-top: 20px;">個別修正</h4>
+                <ul>
+                    <li><strong>直接編集：</strong> セルをクリックして時間帯を変更可能</li>
+                    <li><strong>警告表示：</strong> 条件に合わない配置は赤字で表示</li>
+                    <li><strong>強制登録：</strong> 警告があっても保存は可能</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- シフト編集モーダル -->
+    <div id="shift-edit-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 400px;">
+            <h3 style="margin-bottom: 20px;">シフト編集</h3>
+            
+            <div style="margin-bottom: 15px;">
+                <strong>従業員:</strong> <span id="edit-employee-name"></span><br>
+                <strong>日付:</strong> <span id="edit-date"></span>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-shift-time">シフト時間</label>
+                <select id="edit-shift-time" class="form-control">
+                    <!-- 時間帯マスタから動的に生成 -->
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-cell-background">セル背景色</label>
+                <select id="edit-cell-background" class="form-control">
+                    <option value="">デフォルト（白）</option>
+                    <option value="orange">薄いオレンジ</option>
+                    <option value="yellow">薄い黄色</option>
+                    <option value="green">薄い緑</option>
+                    <option value="blue">薄い青</option>
+                    <option value="pink">薄いピンク</option>
+                </select>
+            </div>
+            
+            <div id="warning-message" class="alert alert-danger" style="display: none; margin-top: 15px; font-size: 12px;"></div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button id="save-shift-edit-btn" class="btn btn-success" style="margin-right: 10px;">保存</button>
+                <button id="cancel-shift-edit-btn" class="btn btn-secondary">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/shift-create.js"></script>
+</body>
+</html>

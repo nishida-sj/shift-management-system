@@ -1,0 +1,26 @@
+# 環境設定ファイル（本番用は別途管理）
+public_html/api/config.local.php
+
+# ログファイル
+*.log
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 一時ファイル
+*.tmp
+*.temp
+
+# バックアップファイル
+*.bak
+*~

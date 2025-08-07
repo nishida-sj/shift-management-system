@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム - 月間行事予定</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/data-manager.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>シフト管理システム - 月間行事予定</h1>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: #2c3e50;">月間行事予定管理</h2>
+                <a href="admin.html" class="btn btn-primary">戻る</a>
+                <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h3 id="current-month" style="color: #34495e;">2024年8月の行事予定</h3>
+                <div>
+                    <button id="prev-month" class="btn btn-secondary">前月</button>
+                    <button id="next-month" class="btn btn-secondary">次月</button>
+                </div>
+            </div>
+
+            <div id="success-message" class="alert alert-success" style="display: none;"></div>
+            <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+
+            <div id="calendar-container">
+                <!-- カレンダーはJavaScriptで動的生成 -->
+            </div>
+
+            <div style="margin-top: 30px; text-align: center;">
+                <button id="save-btn" class="btn btn-success" style="margin-right: 10px;">
+                    予定を保存
+                </button>
+                <button id="clear-month-btn" class="btn btn-secondary">
+                    全てクリア
+                </button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="color: #2c3e50; margin-bottom: 20px;">行事予定設定方法</h3>
+            <div style="font-size: 14px; color: #555; line-height: 1.8;">
+                <p><strong>1. 行事選択：</strong> 各日のセレクトボックスから行事を選択してください</p>
+                <p><strong>2. 行事マスタ：</strong> 新しい行事を追加する場合は、先に「行事マスタ」で登録してください</p>
+                <p><strong>3. 自動反映：</strong> 選択した行事の要件（必要人数・時間帯）は自動的にシフト作成に反映されます</p>
+                <p><strong>4. 保存：</strong> 変更後は必ず「予定を保存」ボタンを押してください</p>
+                <p><strong>5. 土日祝日：</strong> 背景色が薄いピンクの日は休日です</p>
+            </div>
+
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 20px;">
+                <h4 style="color: #2c3e50; margin-bottom: 10px;">登録済み行事一覧</h4>
+                <div id="event-master-list" style="font-size: 13px;">
+                    <!-- 行事マスタ一覧はJavaScriptで生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/monthly-events.js"></script>
+</body>
+</html>

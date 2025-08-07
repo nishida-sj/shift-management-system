@@ -1,0 +1,246 @@
+$(document).ready(function() {
+    let currentSettings = getDefaultSettings();
+    
+    // 初期表示
+    loadSettings();
+    renderTimeSlots();
+    
+    // 保存ボタン
+    $('#save-btn').on('click', function() {
+        saveSettings();
+    });
+    
+    // リセットボタン
+    $('#reset-btn').on('click', function() {
+        if (confirm('設定をデフォルト値に戻しますか？')) {
+            resetToDefault();
+        }
+    });
+    
+    // 時間帯追加ボタン
+    $('#add-time-slot-btn').on('click', function() {
+        addTimeSlot();
+    });
+    
+    // 時間帯削除ボタン（動的要素用）
+    $(document).on('click', '.remove-time-slot-btn', function() {
+        if (confirm('この時間帯を削除しますか？')) {
+            $(this).closest('.time-slot-row').remove();
+        }
+    });
+    
+    // デフォルト設定を取得
+    function getDefaultSettings() {
+        return {
+            basicSettings: {
+                minRestHours: 1,
+                maxConsecutiveDays: 6,
+                minRestDaysAfterConsecutive: 1
+            },
+            timeSlots: [
+                '9:00-13:00',
+                '9:30-14:00',
+                '9:30-16:00',
+                '10:00-14:00',
+                '10:00-16:00',
+                '13:00-17:00',
+                '14:00-18:00',
+                '9:00-17:00'
+            ],
+            priorities: {
+                prioritizeMainBusiness: true,
+                respectOffRequests: true,
+                respectTimePreferences: true,
+                balanceWorkload: false
+            },
+            warnings: {
+                warnConditionViolation: true,
+                warnConsecutiveWork: true,
+                warnInsufficientRest: true
+            }
+        };
+    }
+    
+    // 設定を読み込み
+    function loadSettings() {
+        const saved = localStorage.getItem('shiftApp_shiftConditions');
+        if (saved) {
+            currentSettings = JSON.parse(saved);
+        }
+        
+        // フォームに値を設定
+        $('#min-rest-hours').val(currentSettings.basicSettings.minRestHours);
+        $('#max-consecutive-days').val(currentSettings.basicSettings.maxConsecutiveDays);
+        $('#min-rest-days-after-consecutive').val(currentSettings.basicSettings.minRestDaysAfterConsecutive);
+        
+        $('#prioritize-main-business').prop('checked', currentSettings.priorities.prioritizeMainBusiness);
+        $('#respect-off-requests').prop('checked', currentSettings.priorities.respectOffRequests);
+        $('#respect-time-preferences').prop('checked', currentSettings.priorities.respectTimePreferences);
+        $('#balance-workload').prop('checked', currentSettings.priorities.balanceWorkload);
+        
+        $('#warn-condition-violation').prop('checked', currentSettings.warnings.warnConditionViolation);
+        $('#warn-consecutive-work').prop('checked', currentSettings.warnings.warnConsecutiveWork);
+        $('#warn-insufficient-rest').prop('checked', currentSettings.warnings.warnInsufficientRest);
+    }
+    
+    // 時間帯一覧を描画
+    function renderTimeSlots() {
+        let html = '';
+        currentSettings.timeSlots.forEach((timeSlot, index) => {
+            html += createTimeSlotRow(timeSlot, index);
+        });
+        $('#time-slots-container').html(html);
+    }
+    
+    // 時間帯行を作成
+    function createTimeSlotRow(timeSlot = '', index = -1) {
+        const timeSlotParts = timeSlot.split('-');
+        const startTime = timeSlotParts[0] || '';
+        const endTime = timeSlotParts[1] || '';
+        
+        return `
+            <div class="time-slot-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                <div style="flex: 1;">
+                    <label>開始時間</label>
+                    <input type="time" class="form-control start-time" value="${startTime}" style="width: 120px;">
+                </div>
+                <div style="flex: 1;">
+                    <label>終了時間</label>
+                    <input type="time" class="form-control end-time" value="${endTime}" style="width: 120px;">
+                </div>
+                <div style="flex: 2;">
+                    <label>表示名</label>
+                    <input type="text" class="form-control time-display" value="${timeSlot}" placeholder="例: 9:00-13:00" readonly>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-secondary remove-time-slot-btn" style="margin-top: 25px;">削除</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    // 時間帯を追加
+    function addTimeSlot() {
+        const html = createTimeSlotRow();
+        $('#time-slots-container').append(html);
+        
+        // 新しく追加された行のイベントハンドラを設定
+        const newRow = $('#time-slots-container .time-slot-row').last();
+        setupTimeSlotEvents(newRow);
+    }
+    
+    // 時間帯行のイベントを設定
+    function setupTimeSlotEvents(row) {
+        row.find('.start-time, .end-time').on('change', function() {
+            const startTime = row.find('.start-time').val();
+            const endTime = row.find('.end-time').val();
+            
+            if (startTime && endTime) {
+                const displayValue = `${startTime}-${endTime}`;
+                row.find('.time-display').val(displayValue);
+            }
+        });
+    }
+    
+    // 既存の時間帯行にイベントを設定
+    $(document).on('change', '.start-time, .end-time', function() {
+        const row = $(this).closest('.time-slot-row');
+        const startTime = row.find('.start-time').val();
+        const endTime = row.find('.end-time').val();
+        
+        if (startTime && endTime) {
+            const displayValue = `${startTime}-${endTime}`;
+            row.find('.time-display').val(displayValue);
+        }
+    });
+    
+    // 設定を保存
+    function saveSettings() {
+        try {
+            // 基本設定を取得
+            currentSettings.basicSettings = {
+                minRestHours: parseInt($('#min-rest-hours').val()) || 1,
+                maxConsecutiveDays: parseInt($('#max-consecutive-days').val()) || 6,
+                minRestDaysAfterConsecutive: parseInt($('#min-rest-days-after-consecutive').val()) || 1
+            };
+            
+            // 時間帯を取得
+            const timeSlots = [];
+            $('.time-slot-row').each(function() {
+                const startTime = $(this).find('.start-time').val();
+                const endTime = $(this).find('.end-time').val();
+                
+                if (startTime && endTime) {
+                    timeSlots.push(`${startTime}-${endTime}`);
+                }
+            });
+            
+            if (timeSlots.length === 0) {
+                showError('時間帯を1つ以上設定してください。');
+                return;
+            }
+            
+            currentSettings.timeSlots = timeSlots;
+            
+            // 優先度設定を取得
+            currentSettings.priorities = {
+                prioritizeMainBusiness: $('#prioritize-main-business').is(':checked'),
+                respectOffRequests: $('#respect-off-requests').is(':checked'),
+                respectTimePreferences: $('#respect-time-preferences').is(':checked'),
+                balanceWorkload: $('#balance-workload').is(':checked')
+            };
+            
+            // 警告設定を取得
+            currentSettings.warnings = {
+                warnConditionViolation: $('#warn-condition-violation').is(':checked'),
+                warnConsecutiveWork: $('#warn-consecutive-work').is(':checked'),
+                warnInsufficientRest: $('#warn-insufficient-rest').is(':checked')
+            };
+            
+            // ローカルストレージに保存
+            localStorage.setItem('shiftApp_shiftConditions', JSON.stringify(currentSettings));
+            
+            showSuccess('設定を保存しました。');
+            
+        } catch (error) {
+            console.error('設定保存エラー:', error);
+            showError('設定の保存に失敗しました。');
+        }
+    }
+    
+    // デフォルトに戻す
+    function resetToDefault() {
+        currentSettings = getDefaultSettings();
+        loadSettings();
+        renderTimeSlots();
+        showSuccess('設定をデフォルト値に戻しました。');
+    }
+    
+    // 成功メッセージ表示
+    function showSuccess(message) {
+        $('#success-message').text(message).show();
+        setTimeout(function() {
+            $('#success-message').fadeOut();
+        }, 3000);
+    }
+    
+    // エラーメッセージ表示
+    function showError(message) {
+        $('#error-message').text(message).show();
+        setTimeout(function() {
+            $('#error-message').fadeOut();
+        }, 5000);
+    }
+    
+    // データマネージャーに設定取得関数を追加
+    if (typeof dataManager !== 'undefined') {
+        dataManager.getShiftConditions = function() {
+            const saved = localStorage.getItem('shiftApp_shiftConditions');
+            return saved ? JSON.parse(saved) : getDefaultSettings();
+        };
+        
+        dataManager.saveShiftConditions = function(settings) {
+            localStorage.setItem('shiftApp_shiftConditions', JSON.stringify(settings));
+        };
+    }
+});

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム - 行事マスタ</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/data-manager.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>シフト管理システム - 行事マスタ</h1>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: #2c3e50;">行事マスタ管理</h2>
+                <div>
+                    <button id="add-event-btn" class="btn btn-success" style="margin-right: 10px;">新規追加</button>
+                    <a href="admin.html" class="btn btn-primary">戻る</a>
+                    <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+                </div>
+            </div>
+
+            <div id="success-message" class="alert alert-success" style="display: none;"></div>
+            <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+
+            <div id="event-list">
+                <!-- 行事一覧はJavaScriptで生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 行事編集モーダル -->
+    <div id="event-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 800px; max-height: 90%; overflow-y: auto;">
+            <h3 id="modal-title" style="margin-bottom: 20px;">行事情報編集</h3>
+            
+            <form id="event-form">
+                <div class="form-group">
+                    <label for="event-id">行事ID</label>
+                    <input type="text" id="event-id" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="event-name">行事名</label>
+                    <input type="text" id="event-name" class="form-control" required>
+                </div>
+
+                <h4 style="margin: 20px 0 10px 0; color: #2c3e50;">シフト要件設定</h4>
+                
+                <!-- 事務業務 -->
+                <div class="card" style="background-color: #f8f9fa; margin-bottom: 20px;">
+                    <h5 style="color: #2c3e50; margin-bottom: 15px;">事務業務</h5>
+                    <div id="office-requirements">
+                        <!-- 事務業務要件はJavaScriptで生成 -->
+                    </div>
+                    <button type="button" id="add-office-req-btn" class="btn btn-primary">事務業務要件追加</button>
+                </div>
+
+                <!-- 調理業務 -->
+                <div class="card" style="background-color: #fff3cd; margin-bottom: 20px;">
+                    <h5 style="color: #2c3e50; margin-bottom: 15px;">調理業務</h5>
+                    <div id="cooking-requirements">
+                        <!-- 調理業務要件はJavaScriptで生成 -->
+                    </div>
+                    <button type="button" id="add-cooking-req-btn" class="btn btn-primary">調理業務要件追加</button>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <button type="submit" class="btn btn-success" style="margin-right: 10px;">保存</button>
+                    <button type="button" id="cancel-btn" class="btn btn-secondary">キャンセル</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/event-master.js"></script>
+</body>
+</html>

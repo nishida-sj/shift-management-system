@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム - シフト条件設定</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>シフト管理システム - シフト条件設定</h1>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h2 style="color: #2c3e50;">シフト条件設定</h2>
+                <div>
+                    <a href="admin.html" class="btn btn-secondary" style="margin-right: 10px;">管理者メニュー</a>
+                    <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+                </div>
+            </div>
+
+            <div id="success-message" class="alert alert-success" style="display: none;"></div>
+            <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+
+            <!-- 基本設定 -->
+            <div class="card" style="margin-bottom: 30px;">
+                <h3 style="color: #2c3e50; margin-bottom: 20px;">基本設定</h3>
+                
+                <div class="form-group">
+                    <label for="min-rest-hours">最小休憩時間（時間）</label>
+                    <input type="number" id="min-rest-hours" class="form-control" min="0" max="24" value="1" style="width: 150px;">
+                    <small class="form-text text-muted">連続勤務の間に必要な最小休憩時間</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="max-consecutive-days">最大連続勤務日数</label>
+                    <input type="number" id="max-consecutive-days" class="form-control" min="1" max="31" value="6" style="width: 150px;">
+                    <small class="form-text text-muted">連続して勤務できる最大日数</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="min-rest-days-after-consecutive">連続勤務後の最小休日数</label>
+                    <input type="number" id="min-rest-days-after-consecutive" class="form-control" min="0" max="7" value="1" style="width: 150px;">
+                    <small class="form-text text-muted">連続勤務後に必要な最小休日数</small>
+                </div>
+            </div>
+
+            <!-- 時間帯マスタ -->
+            <div class="card" style="margin-bottom: 30px;">
+                <h3 style="color: #2c3e50; margin-bottom: 20px;">時間帯マスタ</h3>
+                <p style="color: #666; margin-bottom: 15px; font-size: 14px;">
+                    ここで設定した時間帯が、行事マスタ・従業員マスタ・シフト入力画面の選択肢として使用されます。
+                </p>
+                
+                <div style="margin-bottom: 20px;">
+                    <button id="add-time-slot-btn" class="btn btn-primary">時間帯追加</button>
+                </div>
+
+                <div id="time-slots-container">
+                    <!-- 時間帯はJavaScriptで動的生成 -->
+                </div>
+            </div>
+
+            <!-- 優先度設定 -->
+            <div class="card" style="margin-bottom: 30px;">
+                <h3 style="color: #2c3e50; margin-bottom: 20px;">シフト作成優先度設定</h3>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="prioritize-main-business" checked>
+                        メイン業務区分の従業員を優先配置する
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="respect-off-requests" checked>
+                        休み希望を必ず考慮する
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="respect-time-preferences" checked>
+                        時間帯希望を考慮する
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="balance-workload">
+                        従業員間の勤務時間を均等化する
+                    </label>
+                </div>
+            </div>
+
+            <!-- 警告設定 -->
+            <div class="card" style="margin-bottom: 30px;">
+                <h3 style="color: #2c3e50; margin-bottom: 20px;">警告表示設定</h3>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="warn-condition-violation" checked>
+                        従業員の勤務条件違反を警告表示する
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="warn-consecutive-work" checked>
+                        連続勤務日数超過を警告表示する
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="warn-insufficient-rest" checked>
+                        休憩時間不足を警告表示する
+                    </label>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <button id="save-btn" class="btn btn-success" style="margin-right: 10px;">設定を保存</button>
+                <button id="reset-btn" class="btn btn-secondary">デフォルトに戻す</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="color: #2c3e50; margin-bottom: 20px;">設定について</h3>
+            <div style="font-size: 14px; color: #555; line-height: 1.8;">
+                <h4>基本設定</h4>
+                <ul>
+                    <li><strong>最小休憩時間：</strong> 連続する勤務時間の間に必要な休憩時間を設定します</li>
+                    <li><strong>最大連続勤務日数：</strong> 従業員が連続して勤務できる最大日数を設定します</li>
+                    <li><strong>連続勤務後の最小休日数：</strong> 連続勤務後に必要な休日数を設定します</li>
+                </ul>
+
+                <h4>時間帯マスタ</h4>
+                <p>システム全体で使用する時間帯を管理します。ここで設定した時間帯が以下の場所で選択肢として表示されます：</p>
+                <ul>
+                    <li><strong>行事マスタ：</strong> 行事の業務要件で使用する時間帯</li>
+                    <li><strong>従業員マスタ：</strong> 従業員の出勤可能時間帯</li>
+                    <li><strong>シフト入力画面：</strong> 従業員の希望時間帯（「時間帯指定」以外）</li>
+                </ul>
+
+                <h4>優先度設定</h4>
+                <ul>
+                    <li><strong>メイン業務区分優先：</strong> メイン業務区分の従業員を優先的に配置します</li>
+                    <li><strong>休み希望考慮：</strong> 従業員の休み希望を必ず反映します</li>
+                    <li><strong>時間帯希望考慮：</strong> 従業員の希望時間帯を考慮します</li>
+                    <li><strong>勤務時間均等化：</strong> 従業員間の勤務時間バランスを調整します</li>
+                </ul>
+
+                <h4>警告表示設定</h4>
+                <p>各種条件違反時に赤字で警告表示するかどうかを設定できます。</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data-manager.js"></script>
+    <script src="js/shift-conditions.js"></script>
+</body>
+</html>

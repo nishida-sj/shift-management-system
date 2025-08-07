@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム - 業務区分マスタ</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/data-manager.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>シフト管理システム - 業務区分マスタ</h1>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: #2c3e50;">業務区分マスタ管理</h2>
+                <div>
+                    <button id="add-business-type-btn" class="btn btn-success" style="margin-right: 10px;">新規追加</button>
+                    <a href="admin.html" class="btn btn-primary">戻る</a>
+                    <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+                </div>
+            </div>
+
+            <div id="success-message" class="alert alert-success" style="display: none;"></div>
+            <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+
+            <div id="business-type-list">
+                <!-- 業務区分一覧はJavaScriptで生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 業務区分編集モーダル -->
+    <div id="business-type-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 500px;">
+            <h3 id="modal-title" style="margin-bottom: 20px;">業務区分情報編集</h3>
+            
+            <form id="business-type-form">
+                <div class="form-group">
+                    <label for="bt-code">業務区分コード</label>
+                    <input type="text" id="bt-code" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="bt-name">業務区分名</label>
+                    <input type="text" id="bt-name" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="bt-description">説明</label>
+                    <textarea id="bt-description" class="form-control" rows="3" placeholder="業務内容の説明を入力してください"></textarea>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <button type="submit" class="btn btn-success" style="margin-right: 10px;">保存</button>
+                    <button type="button" id="cancel-btn" class="btn btn-secondary">キャンセル</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/business-type-master.js"></script>
+</body>
+</html>
