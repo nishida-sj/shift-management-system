@@ -235,6 +235,7 @@ $(document).ready(function() {
             }
             
             // 曜日別スケジュールを設定
+            console.log('週間スケジュールデータ:', fullEmployee.conditions.weeklySchedule);
             initializeWeeklySchedule(fullEmployee.conditions.weeklySchedule);
             
         } catch (error) {

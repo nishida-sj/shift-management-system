@@ -252,13 +252,19 @@ class DataConverter {
         }
         
         if (availableDays && Array.isArray(availableDays)) {
+            console.log('利用可能日:', availableDays);
+            console.log('希望時間:', apiEmployee.preferred_time_start, '-', apiEmployee.preferred_time_end);
+            
             availableDays.forEach(dayName => {
                 const dayNum = dayMap[dayName];
                 if (dayNum !== undefined && apiEmployee.preferred_time_start && apiEmployee.preferred_time_end) {
                     weeklySchedule[dayNum] = [`${apiEmployee.preferred_time_start}-${apiEmployee.preferred_time_end}`];
+                    console.log(`曜日${dayNum}(${dayName})に時間設定:`, weeklySchedule[dayNum]);
                 }
             });
         }
+        
+        console.log('最終的な週間スケジュール:', weeklySchedule);
 
         return {
             code: apiEmployee.employee_code,
