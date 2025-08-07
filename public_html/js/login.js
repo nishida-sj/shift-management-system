@@ -11,7 +11,7 @@ $(document).ready(function() {
     }
 
     // ログインフォームの送信処理
-    $('#login-form').on('submit', function(e) {
+    $('#login-form').on('submit', async function(e) {
         e.preventDefault();
         
         const userType = $('#user-type').val();
@@ -24,26 +24,35 @@ $(document).ready(function() {
             return;
         }
         
-        // 認証処理（テスト用）
-        if (authenticate(userType, username, password)) {
-            // ログイン成功
-            const userData = {
-                userType: userType,
-                username: username,
-                loginTime: new Date().toISOString()
-            };
+        try {
+            // API認証処理
+            const response = await apiClient.login(username, password);
             
-            // ローカルストレージに保存
-            localStorage.setItem('shiftApp_user', JSON.stringify(userData));
-            
-            // リダイレクト
-            if (userType === 'admin') {
-                window.location.href = 'admin.html';
+            if (response.success) {
+                // ログイン成功
+                const userData = {
+                    userType: response.user_type,
+                    username: response.user_type === 'admin' ? response.username : response.employee_code,
+                    name: response.name || response.username,
+                    business_type: response.business_type || null,
+                    loginTime: new Date().toISOString()
+                };
+                
+                // ローカルストレージに保存
+                localStorage.setItem('shiftApp_user', JSON.stringify(userData));
+                
+                // リダイレクト
+                if (response.user_type === 'admin') {
+                    window.location.href = 'admin.html';
+                } else {
+                    window.location.href = 'input.html';
+                }
             } else {
-                window.location.href = 'input.html';
+                showError('ユーザー名またはパスワードが正しくありません。');
             }
-        } else {
-            showError('ユーザー名またはパスワードが正しくありません。');
+        } catch (error) {
+            console.error('ログインエラー:', error);
+            showError('ログイン処理中にエラーが発生しました。');
         }
     });
     
@@ -67,33 +76,8 @@ $(document).ready(function() {
         }, 3000);
     }
     
-    // 認証処理
-    function authenticate(userType, username, password) {
-        if (userType === 'admin') {
-            // 管理者の固定認証
-            return username === 'admin' && password === 'admin123';
-        } else if (userType === 'employee') {
-            // 従業員マスタからの認証
-            try {
-                // DataManagerのインスタンスを作成
-                const dataManager = new DataManager();
-                const employees = dataManager.getEmployees();
-                const employee = employees.find(emp => emp.code === username);
-                
-                if (employee && employee.password === password) {
-                    console.log('従業員ログイン成功:', employee.name, 'ID:', employee.code);
-                    return true;
-                }
-                console.log('従業員ログイン失敗 - ID:', username, '利用可能な従業員:', employees.map(e => `${e.code}(${e.name})`));
-                return false;
-            } catch (error) {
-                console.error('従業員マスタ取得エラー:', error);
-                return false;
-            }
-        }
-        
-        return false;
-    }
+    // 旧認証処理（API移行により不要）
+    // function authenticate(...) { ... }
     
     // 既存ログインチェック
     function checkExistingLogin() {
