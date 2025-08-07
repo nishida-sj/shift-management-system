@@ -55,12 +55,36 @@ $(document).ready(function() {
     async function loadData() {
         try {
             const apiEmployees = await apiClient.getEmployees();
-            currentEmployees = apiEmployees.map(emp => dataConverter.employeeFromApi(emp));
+            console.log('API従業員データ:', apiEmployees); // デバッグ用ログ
+            
+            currentEmployees = apiEmployees.map(emp => {
+                try {
+                    return dataConverter.employeeFromApi(emp);
+                } catch (conversionError) {
+                    console.error('従業員データ変換エラー:', conversionError, emp);
+                    // 変換エラーの場合、基本データのみで作成
+                    return {
+                        code: emp.employee_code,
+                        name: emp.name,
+                        businessTypes: [{
+                            code: emp.business_type === '調理' ? 'cooking' : 'office',
+                            isMain: true
+                        }],
+                        password: emp.password,
+                        conditions: {
+                            weeklySchedule: {},
+                            maxHoursPerDay: emp.work_limit_per_day || 8,
+                            maxDaysPerWeek: 5
+                        }
+                    };
+                }
+            });
+            
             businessTypes = dataManager.getBusinessTypes(); // 業務区分は従来通り
             renderEmployeeList();
         } catch (error) {
             console.error('従業員データ取得エラー:', error);
-            alert('従業員データの取得に失敗しました。');
+            alert('従業員データの取得に失敗しました。詳細はコンソールを確認してください。');
         }
     }
     

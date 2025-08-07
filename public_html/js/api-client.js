@@ -233,8 +233,19 @@ class DataConverter {
         const weeklySchedule = {};
         const dayMap = {'日': 0, '月': 1, '火': 2, '水': 3, '木': 4, '金': 5, '土': 6};
         
-        if (apiEmployee.available_days) {
-            apiEmployee.available_days.forEach(dayName => {
+        // available_daysがJSON文字列の場合はパース
+        let availableDays = apiEmployee.available_days;
+        if (typeof availableDays === 'string') {
+            try {
+                availableDays = JSON.parse(availableDays);
+            } catch (e) {
+                console.error('available_days JSON parse error:', e);
+                availableDays = [];
+            }
+        }
+        
+        if (availableDays && Array.isArray(availableDays)) {
+            availableDays.forEach(dayName => {
                 const dayNum = dayMap[dayName];
                 if (dayNum !== undefined && apiEmployee.preferred_time_start && apiEmployee.preferred_time_end) {
                     weeklySchedule[dayNum] = [`${apiEmployee.preferred_time_start}-${apiEmployee.preferred_time_end}`];
