@@ -21,17 +21,27 @@ $(document).ready(function() {
     });
     
     // データを読み込み
-    function loadData() {
-        const dataManager = new DataManager();
-        currentBusinessTypes = dataManager.getBusinessTypes();
-        employees = dataManager.getEmployees();
-        currentOrders = dataManager.getEmployeeOrders();
-        
-        renderBusinessTypeTabs();
-        
-        // 最初の業務区分を選択
-        if (currentBusinessTypes.length > 0) {
-            selectBusinessType(currentBusinessTypes[0].code);
+    async function loadData() {
+        try {
+            const dataManager = new DataManager();
+            currentBusinessTypes = dataManager.getBusinessTypes();
+            currentOrders = dataManager.getEmployeeOrders();
+            
+            // APIから現在有効な従業員を取得
+            const apiEmployees = await apiClient.getEmployees();
+            employees = apiEmployees.map(emp => dataConverter.employeeFromApi(emp));
+            
+            console.log('従業員並び順: APIから従業員データを取得:', employees.length, '名');
+            
+            renderBusinessTypeTabs();
+            
+            // 最初の業務区分を選択
+            if (currentBusinessTypes.length > 0) {
+                selectBusinessType(currentBusinessTypes[0].code);
+            }
+        } catch (error) {
+            console.error('従業員データ取得エラー:', error);
+            alert('従業員データの取得に失敗しました。');
         }
     }
     
@@ -215,6 +225,9 @@ $(document).ready(function() {
         // 現在の並び順を保存
         saveCurrentOrder();
         
+        // 削除された従業員を並び順設定から除外
+        cleanupOrdersForDeletedEmployees();
+        
         try {
             const dataManager = new DataManager();
             dataManager.saveEmployeeOrders(currentOrders);
@@ -223,6 +236,17 @@ $(document).ready(function() {
             console.error('並び順保存エラー:', error);
             showError('並び順の保存に失敗しました。');
         }
+    }
+
+    // 削除された従業員を並び順設定から除外
+    function cleanupOrdersForDeletedEmployees() {
+        const currentEmployeeCodes = employees.map(emp => emp.code);
+        
+        Object.keys(currentOrders).forEach(businessTypeCode => {
+            currentOrders[businessTypeCode] = currentOrders[businessTypeCode].filter(empCode => 
+                currentEmployeeCodes.includes(empCode)
+            );
+        });
     }
     
     // 現在の業務区分の並び順をリセット
