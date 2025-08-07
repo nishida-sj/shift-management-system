@@ -323,31 +323,40 @@ class DataConverter {
         return {
             event_id: localEvent.id,
             event_name: localEvent.name,
+            // 後方互換性のため、最初の要件を従来フィールドにも設定
             office_required: officeReq.length > 0 ? officeReq[0].count : 0,
             office_time_start: officeReq.length > 0 ? officeReq[0].time.split('-')[0] : null,
             office_time_end: officeReq.length > 0 ? officeReq[0].time.split('-')[1] : null,
             kitchen_required: kitchenReq.length > 0 ? kitchenReq[0].count : 0,
             kitchen_time_start: kitchenReq.length > 0 ? kitchenReq[0].time.split('-')[0] : null,
-            kitchen_time_end: kitchenReq.length > 0 ? kitchenReq[0].time.split('-')[1] : null
+            kitchen_time_end: kitchenReq.length > 0 ? kitchenReq[0].time.split('-')[1] : null,
+            // 新しいJSONフィールドで全ての要件を送信
+            requirements: localEvent.requirements
         };
     }
 
     // API形式からlocalStorage形式への変換（行事）
     static eventFromApi(apiEvent) {
-        const requirements = {};
+        let requirements = {};
 
-        if (apiEvent.office_required > 0) {
-            requirements.office = [{
-                time: `${apiEvent.office_time_start}-${apiEvent.office_time_end}`,
-                count: apiEvent.office_required
-            }];
-        }
+        // 新しいrequirementsフィールドを優先的に使用
+        if (apiEvent.requirements) {
+            requirements = apiEvent.requirements;
+        } else {
+            // フォールバック: 従来のフィールドから変換
+            if (apiEvent.office_required > 0) {
+                requirements.office = [{
+                    time: `${apiEvent.office_time_start}-${apiEvent.office_time_end}`,
+                    count: apiEvent.office_required
+                }];
+            }
 
-        if (apiEvent.kitchen_required > 0) {
-            requirements.cooking = [{
-                time: `${apiEvent.kitchen_time_start}-${apiEvent.kitchen_time_end}`,
-                count: apiEvent.kitchen_required
-            }];
+            if (apiEvent.kitchen_required > 0) {
+                requirements.cooking = [{
+                    time: `${apiEvent.kitchen_time_start}-${apiEvent.kitchen_time_end}`,
+                    count: apiEvent.kitchen_required
+                }];
+            }
         }
 
         return {

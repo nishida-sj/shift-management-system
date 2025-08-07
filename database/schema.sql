@@ -24,12 +24,13 @@ CREATE TABLE employees (
 CREATE TABLE events (
     event_id INT PRIMARY KEY AUTO_INCREMENT,
     event_name VARCHAR(100) NOT NULL,
-    office_required INT DEFAULT 0, -- 事務業務必要人数
-    office_time_start TIME,
-    office_time_end TIME,
-    kitchen_required INT DEFAULT 0, -- 調理業務必要人数
-    kitchen_time_start TIME,
-    kitchen_time_end TIME,
+    office_required INT DEFAULT 0, -- 事務業務必要人数（後方互換性のため残す）
+    office_time_start TIME, -- 後方互換性のため残す
+    office_time_end TIME, -- 後方互換性のため残す
+    kitchen_required INT DEFAULT 0, -- 調理業務必要人数（後方互換性のため残す）
+    kitchen_time_start TIME, -- 後方互換性のため残す
+    kitchen_time_end TIME, -- 後方互換性のため残す
+    requirements JSON, -- 業務区分別複数時間帯要件 {"office":[{"time":"09:00-17:00","count":2}],"cooking":[{"time":"08:00-16:00","count":1}]}
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

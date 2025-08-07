@@ -33,6 +33,13 @@ function handleGet($db) {
     try {
         $stmt = $db->query("SELECT * FROM events ORDER BY event_id");
         $events = $stmt->fetchAll();
+        
+        foreach ($events as &$event) {
+            if ($event['requirements']) {
+                $event['requirements'] = json_decode($event['requirements'], true);
+            }
+        }
+        
         sendJsonResponse($events);
     } catch (PDOException $e) {
         error_log('Event fetch error: ' . $e->getMessage());
@@ -62,9 +69,9 @@ function handlePost($db) {
     
     try {
         $sql = "INSERT INTO events (event_name, office_required, office_time_start, office_time_end,
-                kitchen_required, kitchen_time_start, kitchen_time_end) 
+                kitchen_required, kitchen_time_start, kitchen_time_end, requirements) 
                 VALUES (:event_name, :office_required, :office_time_start, :office_time_end,
-                :kitchen_required, :kitchen_time_start, :kitchen_time_end)";
+                :kitchen_required, :kitchen_time_start, :kitchen_time_end, :requirements)";
         
         $stmt = $db->prepare($sql);
         $stmt->execute([
@@ -74,7 +81,8 @@ function handlePost($db) {
             'office_time_end' => $input['office_time_end'] ?? null,
             'kitchen_required' => $input['kitchen_required'] ?? 0,
             'kitchen_time_start' => $input['kitchen_time_start'] ?? null,
-            'kitchen_time_end' => $input['kitchen_time_end'] ?? null
+            'kitchen_time_end' => $input['kitchen_time_end'] ?? null,
+            'requirements' => isset($input['requirements']) ? json_encode($input['requirements'], JSON_UNESCAPED_UNICODE) : null
         ]);
         
         $event_id = $db->lastInsertId();
@@ -110,7 +118,7 @@ function handlePut($db) {
         $sql = "UPDATE events SET event_name = :event_name, office_required = :office_required, 
                 office_time_start = :office_time_start, office_time_end = :office_time_end,
                 kitchen_required = :kitchen_required, kitchen_time_start = :kitchen_time_start, 
-                kitchen_time_end = :kitchen_time_end, updated_at = CURRENT_TIMESTAMP
+                kitchen_time_end = :kitchen_time_end, requirements = :requirements, updated_at = CURRENT_TIMESTAMP
                 WHERE event_id = :event_id";
         
         $stmt = $db->prepare($sql);
@@ -122,7 +130,8 @@ function handlePut($db) {
             'office_time_end' => $input['office_time_end'] ?? null,
             'kitchen_required' => $input['kitchen_required'] ?? 0,
             'kitchen_time_start' => $input['kitchen_time_start'] ?? null,
-            'kitchen_time_end' => $input['kitchen_time_end'] ?? null
+            'kitchen_time_end' => $input['kitchen_time_end'] ?? null,
+            'requirements' => isset($input['requirements']) ? json_encode($input['requirements'], JSON_UNESCAPED_UNICODE) : null
         ]);
         
         if ($stmt->rowCount() === 0) {
