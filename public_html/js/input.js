@@ -59,7 +59,7 @@ $(document).ready(function() {
     }
     
     // カレンダー描画
-    function renderCalendar() {
+    async function renderCalendar() {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
         
@@ -193,23 +193,30 @@ $(document).ready(function() {
     }
     
     // 保存済み希望の読み込み
-    function loadSavedPreferences() {
+    async function loadSavedPreferences() {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
-        const preferences = dataManager.getEmployeeRequests(currentUser.username, year, month);
         
-        $('.shift-select').each(function() {
-            const date = $(this).data('date');
-            if (preferences[date]) {
-                $(this).val(preferences[date]);
-            } else {
-                $(this).val(''); // 明示的に空に設定
-            }
-        });
+        try {
+            const apiRequests = await apiClient.getShiftRequests(currentUser.username, year, month);
+            const preferences = dataConverter.requestsFromApi(apiRequests);
+        
+            $('.shift-select').each(function() {
+                const date = $(this).data('date');
+                if (preferences[date]) {
+                    $(this).val(preferences[date]);
+                } else {
+                    $(this).val(''); // 明示的に空に設定
+                }
+            });
+        } catch (error) {
+            console.error('シフト希望読み込みエラー:', error);
+            // エラーが発生しても処理は続行（新規入力として扱う）
+        }
     }
     
     // シフト希望の保存
-    function saveShiftPreferences() {
+    async function saveShiftPreferences() {
         const preferences = {};
         let hasData = false;
         let hasError = false;
@@ -254,12 +261,17 @@ $(document).ready(function() {
             return;
         }
         
-        // 新しいデータマネージャーで保存
+        // API経由で保存
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
-        dataManager.saveEmployeeRequests(currentUser.username, year, month, preferences);
         
-        showSuccess('シフト希望を保存しました。');
+        try {
+            await apiClient.saveShiftRequests(currentUser.username, year, month, preferences);
+            showSuccess('シフト希望を保存しました。');
+        } catch (error) {
+            console.error('シフト希望保存エラー:', error);
+            showError('シフト希望の保存に失敗しました。');
+        }
     }
     
     // 時間帯マスタから時間帯を取得
@@ -286,17 +298,22 @@ $(document).ready(function() {
     }
     
     // 全てクリア
-    function clearAllPreferences() {
+    async function clearAllPreferences() {
         $('.shift-select').val('');
         $('.custom-time-container').hide();
         $('.timepicker').val('');
         
-        // 新しいデータマネージャーでクリア
+        // API経由でクリア
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
-        dataManager.saveEmployeeRequests(currentUser.username, year, month, {});
         
-        showSuccess('全ての入力をクリアしました。');
+        try {
+            await apiClient.saveShiftRequests(currentUser.username, year, month, {});
+            showSuccess('全ての入力をクリアしました。');
+        } catch (error) {
+            console.error('シフト希望クリアエラー:', error);
+            showError('シフト希望のクリアに失敗しました。');
+        }
     }
     
     // 成功メッセージ表示
