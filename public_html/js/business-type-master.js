@@ -95,25 +95,38 @@ $(document).ready(function() {
     }
     
     // 業務区分削除
-    function deleteBusinessType(index) {
+    async function deleteBusinessType(index) {
         const businessType = currentBusinessTypes[index];
         
-        // 削除前チェック：この業務区分を使用している従業員がいるかチェック
-        const employees = dataManager.getEmployees();
-        const isUsed = employees.some(emp => 
-            emp.businessTypes && emp.businessTypes.some(bt => bt.code === businessType.code)
-        );
-        
-        if (isUsed) {
-            showError('この業務区分は従業員によって使用されているため削除できません。');
-            return;
-        }
-        
-        if (confirm(`業務区分「${businessType.name}」を削除しますか？\nこの操作は取り消せません。`)) {
-            currentBusinessTypes.splice(index, 1);
-            dataManager.saveBusinessTypes(currentBusinessTypes);
-            renderBusinessTypeList();
-            showSuccess('業務区分を削除しました。');
+        // 削除前チェック：現在存在する従業員でこの業務区分を使用しているかチェック
+        try {
+            const apiEmployees = await apiClient.getEmployees();
+            const isUsed = apiEmployees.some(emp => emp.business_type === businessType.name);
+            
+            if (isUsed) {
+                const usingEmployees = apiEmployees
+                    .filter(emp => emp.business_type === businessType.name)
+                    .map(emp => emp.name)
+                    .join('、');
+                showError(`この業務区分は以下の従業員によって使用されているため削除できません:\n${usingEmployees}`);
+                return;
+            }
+            
+            if (confirm(`業務区分「${businessType.name}」を削除しますか？\n現在使用している従業員はいません。\n\nこの操作は取り消せません。`)) {
+                currentBusinessTypes.splice(index, 1);
+                dataManager.saveBusinessTypes(currentBusinessTypes);
+                renderBusinessTypeList();
+                showSuccess('業務区分を削除しました。');
+            }
+        } catch (error) {
+            console.error('従業員データ取得エラー:', error);
+            // APIエラーの場合は従来通りの確認で削除を許可
+            if (confirm(`業務区分「${businessType.name}」を削除しますか？\n※従業員データの確認ができませんでした。\n\nこの操作は取り消せません。`)) {
+                currentBusinessTypes.splice(index, 1);
+                dataManager.saveBusinessTypes(currentBusinessTypes);
+                renderBusinessTypeList();
+                showSuccess('業務区分を削除しました。');
+            }
         }
     }
     
