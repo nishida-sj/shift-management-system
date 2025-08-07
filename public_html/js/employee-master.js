@@ -373,14 +373,53 @@ $(document).ready(function() {
     }
 
     // 曜日の時間帯行を追加
+    // 時間形式を正規化する関数
+    function normalizeTimeFormat(timeString) {
+        if (!timeString) return '';
+        
+        // HH:MM:SS-HH:MM:SS → HH:MM-HH:MM に変換
+        return timeString.replace(/(\d{2}:\d{2}):\d{2}/g, '$1');
+    }
+    
     function addDayTimeRow(day, selectedTime = '') {
         const timeOptions = getTimeSlots();
+        const normalizedSelectedTime = normalizeTimeFormat(selectedTime);
+        
+        console.log(`曜日${day}: 元の時間=${selectedTime}, 正規化後=${normalizedSelectedTime}`);
         
         let timeOptionsHtml = '<option value="">選択してください</option>';
+        let foundMatch = false;
+        
         timeOptions.forEach(time => {
-            const selected = time === selectedTime ? 'selected' : '';
+            const selected = time === normalizedSelectedTime ? 'selected' : '';
             timeOptionsHtml += `<option value="${time}" ${selected}>${time}</option>`;
+            if (selected) {
+                console.log(`曜日${day}: ${time} を選択状態に設定`);
+                foundMatch = true;
+            }
         });
+        
+        // 完全一致しない場合は部分一致を試す
+        if (!foundMatch && normalizedSelectedTime) {
+            console.log(`曜日${day}: 完全一致なし。部分一致を試します。`);
+            timeOptionsHtml = '<option value="">選択してください</option>';
+            
+            timeOptions.forEach(time => {
+                // 開始時間だけでも一致するかチェック
+                const startTime = normalizedSelectedTime.split('-')[0];
+                const selected = time.startsWith(startTime) ? 'selected' : '';
+                timeOptionsHtml += `<option value="${time}" ${selected}>${time}</option>`;
+                if (selected) {
+                    console.log(`曜日${day}: 部分一致で ${time} を選択状態に設定`);
+                    foundMatch = true;
+                }
+            });
+        }
+        
+        if (!foundMatch && normalizedSelectedTime) {
+            console.warn(`曜日${day}: 時間帯 "${normalizedSelectedTime}" に一致する選択肢が見つかりません`);
+            console.log('利用可能な時間帯:', timeOptions);
+        }
         
         const html = `
             <div class="day-time-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
