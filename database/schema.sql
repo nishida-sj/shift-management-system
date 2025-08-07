@@ -11,8 +11,9 @@ CREATE TABLE employees (
     business_type ENUM('事務', '調理') NOT NULL,
     password VARCHAR(255) NOT NULL,
     available_days JSON, -- 出勤可能曜日 ["月","火","水"]
-    preferred_time_start TIME,
-    preferred_time_end TIME,
+    preferred_time_start TIME, -- 後方互換性のため残す（非推奨）
+    preferred_time_end TIME, -- 後方互換性のため残す（非推奨）
+    weekly_schedule JSON, -- 曜日別時間帯 {"月":["09:00-17:00"],"火":["09:30-16:00"]}
     work_limit_per_day INT DEFAULT 8, -- 1日あたりの勤務時間制限(時間)
     work_limit_per_month INT DEFAULT 160, -- 月あたりの勤務時間制限(時間)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
