@@ -56,9 +56,15 @@ $(document).ready(function() {
     });
     
     // 行事一覧を読み込み
-    function loadEvents() {
-        currentEvents = dataManager.getEvents();
-        renderEventList();
+    async function loadEvents() {
+        try {
+            const apiEvents = await apiClient.getEvents();
+            currentEvents = apiEvents.map(event => dataConverter.eventFromApi(event));
+            renderEventList();
+        } catch (error) {
+            console.error('行事データ取得エラー:', error);
+            alert('行事データの取得に失敗しました。');
+        }
     }
     
     // 行事一覧を描画
@@ -186,13 +192,18 @@ $(document).ready(function() {
     }
     
     // 行事削除
-    function deleteEvent(index) {
+    async function deleteEvent(index) {
         const event = currentEvents[index];
         if (confirm(`行事「${event.name}」を削除しますか？\nこの操作は取り消せません。`)) {
-            currentEvents.splice(index, 1);
-            dataManager.saveEvents(currentEvents);
-            renderEventList();
-            showSuccess('行事を削除しました。');
+            try {
+                await apiClient.deleteEvent(event.id);
+                currentEvents.splice(index, 1);
+                renderEventList();
+                showSuccess('行事を削除しました。');
+            } catch (error) {
+                console.error('行事削除エラー:', error);
+                showError('行事削除に失敗しました。');
+            }
         }
     }
     
@@ -229,24 +240,15 @@ $(document).ready(function() {
     }
     
     // 行事保存
-    function saveEvent() {
+    async function saveEvent() {
         // 入力値取得
         const id = $('#event-id').val().trim();
         const name = $('#event-name').val().trim();
         
         // バリデーション
-        if (!id || !name) {
-            showError('行事IDと行事名を入力してください。');
+        if (!name) {
+            showError('行事名を入力してください。');
             return;
-        }
-        
-        // 行事IDの重複チェック（新規の場合）
-        if (editingIndex === -1) {
-            const existingEvent = currentEvents.find(event => event.id === id);
-            if (existingEvent) {
-                showError('この行事IDは既に使用されています。');
-                return;
-            }
         }
         
         // 事務業務要件を取得
@@ -285,19 +287,28 @@ $(document).ready(function() {
         };
         
         // 保存
-        if (editingIndex === -1) {
-            // 新規追加
-            currentEvents.push(eventData);
-            showSuccess('新規行事を追加しました。');
-        } else {
-            // 更新
-            currentEvents[editingIndex] = eventData;
-            showSuccess('行事情報を更新しました。');
+        try {
+            // API形式に変換
+            const apiEvent = dataConverter.eventToApi(eventData);
+            
+            if (editingIndex === -1) {
+                // 新規追加
+                await apiClient.saveEvent(apiEvent);
+                showSuccess('新規行事を追加しました。');
+            } else {
+                // 更新
+                apiEvent.event_id = eventData.id; // 更新の場合はIDを設定
+                await apiClient.saveEvent(apiEvent);
+                showSuccess('行事情報を更新しました。');
+            }
+            
+            // データを再読み込み
+            await loadEvents();
+            closeModal();
+        } catch (error) {
+            console.error('行事保存エラー:', error);
+            showError('行事の保存に失敗しました。');
         }
-        
-        dataManager.saveEvents(currentEvents);
-        renderEventList();
-        closeModal();
     }
     
     // 成功メッセージ表示
