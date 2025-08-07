@@ -5,6 +5,11 @@ $(document).ready(function() {
     let currentOrders = {};
     let sortableInstance = null;
     
+    console.log('従業員並び順: ページ読み込み開始');
+    console.log('apiClient利用可能:', typeof apiClient !== 'undefined');
+    console.log('dataConverter利用可能:', typeof dataConverter !== 'undefined');
+    console.log('DataManager利用可能:', typeof DataManager !== 'undefined');
+    
     // 初期表示
     loadData();
     
@@ -28,10 +33,16 @@ $(document).ready(function() {
             currentOrders = dataManager.getEmployeeOrders();
             
             // APIから現在有効な従業員を取得
+            console.log('従業員並び順: API呼び出し開始');
             const apiEmployees = await apiClient.getEmployees();
-            employees = apiEmployees.map(emp => dataConverter.employeeFromApi(emp));
+            console.log('従業員並び順: API生データ:', apiEmployees);
             
-            console.log('従業員並び順: APIから従業員データを取得:', employees.length, '名');
+            employees = apiEmployees.map(emp => dataConverter.employeeFromApi(emp));
+            console.log('従業員並び順: 変換後データ:', employees);
+            console.log('従業員並び順: 取得した従業員一覧:');
+            employees.forEach(emp => {
+                console.log(`  - ${emp.code}: ${emp.name} (業務区分:`, emp.businessTypes, ')');
+            });
             
             renderBusinessTypeTabs();
             
@@ -41,7 +52,20 @@ $(document).ready(function() {
             }
         } catch (error) {
             console.error('従業員データ取得エラー:', error);
-            alert('従業員データの取得に失敗しました。');
+            console.log('フォールバック: localStorageから従業員データを取得します');
+            
+            // エラー時はフォールバック（従来のlocalStorage）
+            const dataManager = new DataManager();
+            employees = dataManager.getEmployees();
+            console.log('フォールバック従業員データ:', employees);
+            
+            renderBusinessTypeTabs();
+            
+            if (currentBusinessTypes.length > 0) {
+                selectBusinessType(currentBusinessTypes[0].code);
+            }
+            
+            alert('従業員データの取得に失敗しました。ローカルデータを使用します。');
         }
     }
     
