@@ -326,6 +326,9 @@ $(document).ready(function() {
     
     // 週間スケジュールを初期化
     function initializeWeeklySchedule(scheduleData = {}) {
+        console.log('=== 週間スケジュール初期化 ===');
+        console.log('受信したscheduleData:', scheduleData);
+        
         const dayNames = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
         let html = '';
         
@@ -346,12 +349,18 @@ $(document).ready(function() {
         // 各曜日の時間帯を設定
         for (let day = 0; day <= 6; day++) {
             const dayTimes = scheduleData[day] || [];
+            console.log(`曜日${day} (${dayNames[day]}): `, dayTimes);
+            
             if (dayTimes.length > 0) {
-                dayTimes.forEach(time => {
+                dayTimes.forEach((time, index) => {
+                    console.log(`  -> 時間帯${index}: "${time}"`);
                     addDayTimeRow(day, time);
                 });
+            } else {
+                console.log(`  -> 時間帯なし`);
             }
         }
+        console.log('=== 週間スケジュール初期化完了 ===');
     }
     
     // 時間帯オプションをシフト条件設定から取得
@@ -366,6 +375,7 @@ $(document).ready(function() {
             return ['終日'].concat(timeSlots);
         }
         // フォールバック用の固定値
+        console.log('dataManagerが利用できません。フォールバック値を使用します。');
         return [
             '終日', '9:00-13:00', '9:30-14:00', '9:30-16:00', '10:00-14:00', 
             '10:00-16:00', '13:00-17:00', '14:00-18:00', '9:00-17:00'
@@ -377,6 +387,11 @@ $(document).ready(function() {
     function normalizeTimeFormat(timeString) {
         if (!timeString) return '';
         
+        // 既にHH:MM-HH:MM形式の場合はそのまま返す
+        if (/^\d{2}:\d{2}-\d{2}:\d{2}$/.test(timeString)) {
+            return timeString;
+        }
+        
         // HH:MM:SS-HH:MM:SS → HH:MM-HH:MM に変換
         return timeString.replace(/(\d{2}:\d{2}):\d{2}/g, '$1');
     }
@@ -385,40 +400,48 @@ $(document).ready(function() {
         const timeOptions = getTimeSlots();
         const normalizedSelectedTime = normalizeTimeFormat(selectedTime);
         
-        console.log(`曜日${day}: 元の時間=${selectedTime}, 正規化後=${normalizedSelectedTime}`);
+        console.log(`=== 曜日${day} 時間帯行追加 ===`);
+        console.log(`元の時間: "${selectedTime}"`);
+        console.log(`正規化後: "${normalizedSelectedTime}"`);
+        console.log(`利用可能時間帯:`, timeOptions);
         
         let timeOptionsHtml = '<option value="">選択してください</option>';
         let foundMatch = false;
         
-        timeOptions.forEach(time => {
+        timeOptions.forEach((time, index) => {
             const selected = time === normalizedSelectedTime ? 'selected' : '';
             timeOptionsHtml += `<option value="${time}" ${selected}>${time}</option>`;
             if (selected) {
-                console.log(`曜日${day}: ${time} を選択状態に設定`);
+                console.log(`✓ 完全一致: "${time}" を選択状態に設定`);
                 foundMatch = true;
             }
+            console.log(`  選択肢${index}: "${time}" ${selected ? '(選択済み)' : ''}`);
         });
         
         // 完全一致しない場合は部分一致を試す
         if (!foundMatch && normalizedSelectedTime) {
-            console.log(`曜日${day}: 完全一致なし。部分一致を試します。`);
+            console.log(`完全一致なし。部分一致を試行中...`);
             timeOptionsHtml = '<option value="">選択してください</option>';
             
             timeOptions.forEach(time => {
                 // 開始時間だけでも一致するかチェック
                 const startTime = normalizedSelectedTime.split('-')[0];
-                const selected = time.startsWith(startTime) ? 'selected' : '';
+                const optionStartTime = time.includes('-') ? time.split('-')[0] : time;
+                const selected = optionStartTime === startTime ? 'selected' : '';
                 timeOptionsHtml += `<option value="${time}" ${selected}>${time}</option>`;
                 if (selected) {
-                    console.log(`曜日${day}: 部分一致で ${time} を選択状態に設定`);
+                    console.log(`✓ 部分一致: "${time}" を選択状態に設定 (開始時間 ${startTime} 一致)`);
                     foundMatch = true;
                 }
             });
         }
         
         if (!foundMatch && normalizedSelectedTime) {
-            console.warn(`曜日${day}: 時間帯 "${normalizedSelectedTime}" に一致する選択肢が見つかりません`);
-            console.log('利用可能な時間帯:', timeOptions);
+            console.error(`❌ 曜日${day}: 時間帯 "${normalizedSelectedTime}" に一致する選択肢が見つかりません`);
+            console.log('比較詳細:');
+            timeOptions.forEach((time, idx) => {
+                console.log(`  [${idx}] "${time}" === "${normalizedSelectedTime}": ${time === normalizedSelectedTime}`);
+            });
         }
         
         const html = `
@@ -431,6 +454,7 @@ $(document).ready(function() {
         `;
         
         $(`#day-${day}-times`).append(html);
+        console.log(`=== 曜日${day} 処理完了 ===`);
     }
     
     // 従業員保存

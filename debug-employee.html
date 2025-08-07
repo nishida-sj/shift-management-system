@@ -11,6 +11,8 @@
     <h1>従業員マスタ デバッグ</h1>
     <button id="test-api">API直接テスト</button>
     <button id="test-conversion">データ変換テスト</button>
+    <button id="test-time-slots">時間帯選択肢テスト</button>
+    <button id="test-time-matching">時間マッチングテスト</button>
     <pre id="results"></pre>
 
     <script>
@@ -47,6 +49,83 @@
             } catch (error) {
                 console.error('全体エラー:', error);
                 $('#results').text('全体エラー:\n' + error.message);
+            }
+        });
+
+        $('#test-time-slots').click(function() {
+            // 時間帯マスタの確認
+            const getTimeSlots = function() {
+                // employee-master.jsと同じロジック
+                return [
+                    '終日', '9:00-13:00', '9:30-14:00', '9:30-16:00', '10:00-14:00', 
+                    '10:00-16:00', '13:00-17:00', '14:00-18:00', '9:00-17:00'
+                ];
+            };
+            
+            const slots = getTimeSlots();
+            $('#results').text('利用可能時間帯:\n' + JSON.stringify(slots, null, 2));
+            console.log('時間帯選択肢:', slots);
+        });
+
+        $('#test-time-matching').click(async function() {
+            try {
+                // 実際の従業員データを取得
+                const employees = await apiClient.getEmployees();
+                const firstEmployee = employees[0];
+                
+                if (!firstEmployee) {
+                    $('#results').text('従業員データがありません');
+                    return;
+                }
+                
+                console.log('テスト対象従業員:', firstEmployee);
+                
+                // 時間帯選択肢
+                const timeSlots = [
+                    '終日', '9:00-13:00', '9:30-14:00', '9:30-16:00', '10:00-14:00', 
+                    '10:00-16:00', '13:00-17:00', '14:00-18:00', '9:00-17:00'
+                ];
+                
+                // APIから返される時間データ
+                const apiTimeStart = firstEmployee.preferred_time_start;
+                const apiTimeEnd = firstEmployee.preferred_time_end;
+                const apiTimeRange = apiTimeStart && apiTimeEnd ? `${apiTimeStart}-${apiTimeEnd}` : null;
+                
+                // 正規化関数のテスト
+                const normalizeTimeFormat = function(timeString) {
+                    if (!timeString) return '';
+                    if (/^\d{2}:\d{2}-\d{2}:\d{2}$/.test(timeString)) {
+                        return timeString;
+                    }
+                    return timeString.replace(/(\d{2}:\d{2}):\d{2}/g, '$1');
+                };
+                
+                const normalizedTime = normalizeTimeFormat(apiTimeRange);
+                
+                // マッチング確認
+                const exactMatch = timeSlots.find(slot => slot === normalizedTime);
+                const partialMatch = normalizedTime ? timeSlots.find(slot => {
+                    const startTime = normalizedTime.split('-')[0];
+                    return slot.startsWith(startTime);
+                }) : null;
+                
+                const result = {
+                    employee: firstEmployee.name,
+                    apiTimeStart,
+                    apiTimeEnd,
+                    apiTimeRange,
+                    normalizedTime,
+                    availableSlots: timeSlots,
+                    exactMatch,
+                    partialMatch
+                };
+                
+                $('#results').text('時間マッチングテスト結果:\n' + JSON.stringify(result, null, 2));
+                console.log('マッチング結果:', result);
+                
+            } catch (error) {
+                console.error('時間マッチングテストエラー:', error);
+                $('#results').text('エラー:\n' + error.message);
             }
         });
     </script>

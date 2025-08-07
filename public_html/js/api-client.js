@@ -252,16 +252,29 @@ class DataConverter {
         }
         
         if (availableDays && Array.isArray(availableDays)) {
+            console.log('=== API従業員データ変換 ===');
+            console.log('従業員名:', apiEmployee.name);
             console.log('利用可能日:', availableDays);
-            console.log('希望時間:', apiEmployee.preferred_time_start, '-', apiEmployee.preferred_time_end);
+            console.log('希望開始時間:', apiEmployee.preferred_time_start);
+            console.log('希望終了時間:', apiEmployee.preferred_time_end);
             
             availableDays.forEach(dayName => {
                 const dayNum = dayMap[dayName];
+                console.log(`処理中: ${dayName} (番号: ${dayNum})`);
+                
                 if (dayNum !== undefined && apiEmployee.preferred_time_start && apiEmployee.preferred_time_end) {
-                    weeklySchedule[dayNum] = [`${apiEmployee.preferred_time_start}-${apiEmployee.preferred_time_end}`];
-                    console.log(`曜日${dayNum}(${dayName})に時間設定:`, weeklySchedule[dayNum]);
+                    // 秒を除去して HH:MM 形式に変換
+                    const startTime = apiEmployee.preferred_time_start.substring(0, 5);
+                    const endTime = apiEmployee.preferred_time_end.substring(0, 5);
+                    const timeRange = `${startTime}-${endTime}`;
+                    
+                    weeklySchedule[dayNum] = [timeRange];
+                    console.log(`✓ 曜日${dayNum}(${dayName})に時間設定: "${timeRange}"`);
+                } else {
+                    console.log(`❌ スキップ: dayNum=${dayNum}, start=${apiEmployee.preferred_time_start}, end=${apiEmployee.preferred_time_end}`);
                 }
             });
+            console.log('最終weeklySchedule:', weeklySchedule);
         }
         
         console.log('最終的な週間スケジュール:', weeklySchedule);
