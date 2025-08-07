@@ -278,13 +278,17 @@ $(document).ready(function() {
         
         // 行事データを作成
         const eventData = {
-            id: id,
             name: name,
             requirements: {
                 office: officeRequirements,
                 cooking: cookingRequirements
             }
         };
+        
+        // 更新の場合のみIDを設定
+        if (editingIndex !== -1 && id) {
+            eventData.id = id;
+        }
         
         // 保存
         try {
@@ -297,7 +301,6 @@ $(document).ready(function() {
                 showSuccess('新規行事を追加しました。');
             } else {
                 // 更新
-                apiEvent.event_id = eventData.id; // 更新の場合はIDを設定
                 await apiClient.saveEvent(apiEvent);
                 showSuccess('行事情報を更新しました。');
             }

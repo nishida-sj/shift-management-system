@@ -320,8 +320,7 @@ class DataConverter {
         const officeReq = localEvent.requirements?.office || [];
         const kitchenReq = localEvent.requirements?.cooking || [];
 
-        return {
-            event_id: localEvent.id,
+        const apiEvent = {
             event_name: localEvent.name,
             // 後方互換性のため、最初の要件を従来フィールドにも設定
             office_required: officeReq.length > 0 ? officeReq[0].count : 0,
@@ -333,6 +332,13 @@ class DataConverter {
             // 新しいJSONフィールドで全ての要件を送信
             requirements: localEvent.requirements
         };
+
+        // IDがある場合のみevent_idを設定（更新の場合）
+        if (localEvent.id) {
+            apiEvent.event_id = localEvent.id;
+        }
+
+        return apiEvent;
     }
 
     // API形式からlocalStorage形式への変換（行事）
