@@ -92,7 +92,9 @@ $(document).ready(function() {
                 <div class="date-item ${dayClass}">
                     <div class="date-number">${day}</div>
                     <div class="day-name">(${dayNames[dayOfWeek]})</div>
-                    <select class="shift-select" data-date="${dateString}" style="margin-bottom: 5px;">
+                    <select class="shift-select" data-date="${dateString}" 
+                            id="shift-select-${dateString}" name="shift_select_${dateString}"
+                            style="margin-bottom: 5px;">
                         <option value="">選択なし</option>
                         <option value="off">休み</option>
                         <option value="custom">時間帯指定</option>
@@ -100,9 +102,11 @@ $(document).ready(function() {
                     <div class="custom-time-container" data-date="${dateString}" style="display: none; margin-top: 5px;">
                         <div style="display: flex; align-items: center; gap: 5px; font-size: 12px;">
                             <input type="text" class="timepicker start-time" placeholder="09:00" 
+                                   id="start-time-${dateString}" name="start_time_${dateString}"
                                    style="width: 50px; padding: 2px; text-align: center; font-size: 11px;">
                             <span>～</span>
                             <input type="text" class="timepicker end-time" placeholder="17:00" 
+                                   id="end-time-${dateString}" name="end_time_${dateString}"
                                    style="width: 50px; padding: 2px; text-align: center; font-size: 11px;">
                         </div>
                     </div>
