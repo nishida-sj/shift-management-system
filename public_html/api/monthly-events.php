@@ -95,7 +95,7 @@ function handlePost($db) {
         // 既存データがある場合は更新、ない場合は挿入
         $sql = "INSERT INTO monthly_events (year, month, day, event_id) 
                 VALUES (:year, :month, :day, :event_id)
-                ON DUPLICATE KEY UPDATE event_id = :event_id, updated_at = CURRENT_TIMESTAMP";
+                ON DUPLICATE KEY UPDATE event_id = VALUES(event_id), updated_at = CURRENT_TIMESTAMP";
         
         $stmt = $db->prepare($sql);
         $stmt->execute([
@@ -109,10 +109,13 @@ function handlePost($db) {
         
     } catch (PDOException $e) {
         error_log('Monthly events insert error: ' . $e->getMessage());
+        error_log('Error info: ' . print_r($e->errorInfo, true));
+        
         if ($e->getCode() == 23000) { // 重複エラー
-            sendErrorResponse('指定した日付に既に行事予定が登録されています', 400);
+            sendErrorResponse('指定した日付に既に行事予定が登録されています: ' . $e->getMessage(), 400);
         }
-        sendErrorResponse('月間行事予定の登録に失敗しました', 500);
+        
+        sendErrorResponse('月間行事予定の登録に失敗しました: ' . $e->getMessage(), 500);
     }
 }
 

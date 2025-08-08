@@ -115,6 +115,7 @@ $(document).ready(function() {
             Object.keys(newEvents).forEach(dateKey => {
                 const date = new Date(dateKey);
                 const eventId = newEvents[dateKey];
+                console.log(`保存予定: ${dateKey} -> イベントID ${eventId} (日付: ${date.getDate()})`);
                 savePromises.push(
                     apiClient.saveMonthlyEvent(year, month, date.getDate(), parseInt(eventId))
                 );
