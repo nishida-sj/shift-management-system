@@ -34,8 +34,8 @@ $(document).ready(function() {
     });
     
     // 保存ボタン
-    $('#save-btn').on('click', function() {
-        saveCurrentMonth();
+    $('#save-btn').on('click', async function() {
+        await saveCurrentMonth();
         showSuccess('月間行事予定を保存しました。');
     });
     
@@ -51,23 +51,26 @@ $(document).ready(function() {
         try {
             console.log('月間行事予定: データ読み込み開始');
             
-            // APIから行事マスタを取得
-            const apiEvents = await apiClient.getEvents();
-            eventMaster = apiEvents.map(event => dataConverter.eventFromApi(event));
-            console.log('月間行事予定: 取得した行事数:', eventMaster.length);
-            eventMaster.forEach(event => {
-                console.log(`  - ${event.id}: ${event.name}`);
-            });
-            
-            // 月間行事予定はlocalStorageから取得（API未実装のため）
+            // APIから行事マスタと月間行事予定を取得
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth() + 1;
-            monthlyEvents = dataManager.getMonthlyEvents(year, month);
+            
+            const [apiEvents, apiMonthlyEvents] = await Promise.all([
+                apiClient.getEvents(),
+                apiClient.getMonthlyEvents(year, month)
+            ]);
+            
+            eventMaster = apiEvents.map(event => dataConverter.eventFromApi(event));
+            console.log('月間行事予定: 取得した行事数:', eventMaster.length);
+            
+            // APIから取得した月間行事予定を変換
+            monthlyEvents = convertMonthlyEventsFromApi(apiMonthlyEvents);
+            console.log('月間行事予定: 取得した月間行事予定:', Object.keys(monthlyEvents).length);
             
         } catch (error) {
             console.error('月間行事予定: データ取得エラー:', error);
             
-            // エラー時はフォールバック
+            // エラー時はlocalStorageからフォールバック
             eventMaster = dataManager.getEvents();
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth() + 1;
@@ -78,19 +81,69 @@ $(document).ready(function() {
     }
     
     // 現在の月のデータを保存
-    function saveCurrentMonth() {
-        const events = {};
-        $('.event-select').each(function() {
-            const date = $(this).data('date');
-            const eventId = $(this).val();
-            if (eventId) {
-                events[date] = eventId;
-            }
-        });
-        
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        dataManager.saveMonthlyEvents(year, month, events);
+    async function saveCurrentMonth() {
+        try {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            // 現在の設定を取得
+            const newEvents = {};
+            $('.event-select').each(function() {
+                const date = $(this).data('date');
+                const eventId = $(this).val();
+                if (eventId) {
+                    newEvents[date] = eventId;
+                }
+            });
+            
+            // 削除が必要な日付を特定
+            const currentMonthEvents = await apiClient.getMonthlyEvents(year, month);
+            const deletePromises = [];
+            
+            Object.keys(currentMonthEvents).forEach(dateKey => {
+                if (!newEvents[dateKey]) {
+                    // この日付の行事予定を削除
+                    const date = new Date(dateKey);
+                    deletePromises.push(
+                        apiClient.deleteMonthlyEvent(year, month, date.getDate())
+                    );
+                }
+            });
+            
+            // 追加・更新が必要な日付を特定
+            const savePromises = [];
+            Object.keys(newEvents).forEach(dateKey => {
+                const date = new Date(dateKey);
+                const eventId = newEvents[dateKey];
+                savePromises.push(
+                    apiClient.saveMonthlyEvent(year, month, date.getDate(), parseInt(eventId))
+                );
+            });
+            
+            // 削除・保存を実行
+            await Promise.all([...deletePromises, ...savePromises]);
+            
+            // ローカルストレージも更新（フォールバック用）
+            dataManager.saveMonthlyEvents(year, month, newEvents);
+            
+        } catch (error) {
+            console.error('月間行事予定保存エラー:', error);
+            // エラー時はローカルストレージのみ更新
+            const events = {};
+            $('.event-select').each(function() {
+                const date = $(this).data('date');
+                const eventId = $(this).val();
+                if (eventId) {
+                    events[date] = eventId;
+                }
+            });
+            
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            dataManager.saveMonthlyEvents(year, month, events);
+            
+            showError('月間行事予定の保存に失敗しました。ローカル保存のみ実行しました。');
+        }
     }
     
     // カレンダー描画
@@ -249,6 +302,21 @@ $(document).ready(function() {
         }
         
         $('#event-master-list').html(html);
+    }
+    
+    // 月間行事予定のAPI形式をlocalStorage形式に変換
+    function convertMonthlyEventsFromApi(apiMonthlyEvents) {
+        console.log('月間行事予定API変換:', apiMonthlyEvents);
+        
+        // APIレスポンスが既に日付をキーとした連想配列になっている
+        const converted = {};
+        Object.keys(apiMonthlyEvents).forEach(dateKey => {
+            const eventData = apiMonthlyEvents[dateKey];
+            converted[dateKey] = eventData.event_id;
+        });
+        
+        console.log('変換結果:', converted);
+        return converted;
     }
     
     // 全ての行事をクリア

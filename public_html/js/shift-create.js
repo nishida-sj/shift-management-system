@@ -91,23 +91,25 @@ $(document).ready(function() {
         try {
             console.log('シフト作成: データ読み込み開始');
             
-            // APIから従業員と行事マスタを取得
-            const [apiEmployees, apiEvents] = await Promise.all([
+            // APIから従業員、行事マスタ、月間行事予定を取得
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            const [apiEmployees, apiEvents, apiMonthlyEvents] = await Promise.all([
                 apiClient.getEmployees(),
-                apiClient.getEvents()
+                apiClient.getEvents(),
+                apiClient.getMonthlyEvents(year, month)
             ]);
             
             employees = apiEmployees.map(emp => dataConverter.employeeFromApi(emp));
             eventMaster = apiEvents.map(event => dataConverter.eventFromApi(event));
             
+            // APIから取得した月間行事予定を変換
+            monthlyEvents = convertMonthlyEventsFromApi(apiMonthlyEvents);
+            
             console.log('シフト作成: 取得した従業員数:', employees.length);
             console.log('シフト作成: 取得した行事数:', eventMaster.length);
-            
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth() + 1;
-            
-            // 月間データはlocalStorageから取得（API未実装のため）
-            monthlyEvents = dataManager.getMonthlyEvents(year, month);
+            console.log('シフト作成: 取得した月間行事予定:', Object.keys(monthlyEvents).length);
             currentShift = dataManager.getConfirmedShift(year, month);
             shiftStatus = dataManager.getShiftStatus(year, month);
             
@@ -129,6 +131,7 @@ $(document).ready(function() {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth() + 1;
             
+            // エラー時はlocalStorageからフォールバック
             monthlyEvents = dataManager.getMonthlyEvents(year, month);
             currentShift = dataManager.getConfirmedShift(year, month);
             shiftStatus = dataManager.getShiftStatus(year, month);
@@ -342,6 +345,21 @@ $(document).ready(function() {
         // TODO: 週の勤務日数制限、1日の勤務時間制限もチェック
         
         return true; // 条件に合わない
+    }
+    
+    // 月間行事予定のAPI形式をlocalStorage形式に変換
+    function convertMonthlyEventsFromApi(apiMonthlyEvents) {
+        console.log('月間行事予定API変換:', apiMonthlyEvents);
+        
+        // APIレスポンスが既に日付をキーとした連想配列になっている
+        const converted = {};
+        Object.keys(apiMonthlyEvents).forEach(dateKey => {
+            const eventData = apiMonthlyEvents[dateKey];
+            converted[dateKey] = eventData.event_id;
+        });
+        
+        console.log('変換結果:', converted);
+        return converted;
     }
     
     // シフト条件違反チェック（同期版 - 表描画用）

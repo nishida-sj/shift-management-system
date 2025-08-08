@@ -146,22 +146,26 @@ class ApiClient {
         });
     }
 
-    // 月間行事予定
+    // 月間行事予定（新しいAPIエンドポイント）
     async getMonthlyEvents(year, month) {
-        return this.get('/shifts.php', {
-            type: 'monthly_events',
+        return this.get('/monthly-events.php', { year, month });
+    }
+
+    async saveMonthlyEvent(year, month, day, event_id) {
+        return this.post('/monthly-events.php', {
             year,
-            month
+            month,
+            day,
+            event_id
         });
     }
 
-    async saveMonthlyEvents(year, month, events) {
-        return this.post('/shifts.php', {
-            type: 'monthly_events',
-            year,
-            month,
-            events
-        });
+    async deleteMonthlyEvent(year, month, day, event_id = null) {
+        const params = { year, month, day };
+        if (event_id) {
+            params.event_id = event_id;
+        }
+        return this.delete('/monthly-events.php', params);
     }
 
     // シフト状態
