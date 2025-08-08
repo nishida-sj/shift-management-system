@@ -374,11 +374,16 @@ class DataConverter {
 
     // 休み希望の変換
     static requestsToApi(localRequests) {
+        console.log('=== requestsToApi: データ変換開始 ===');
+        console.log('入力データ:', localRequests);
+        
         const apiRequests = {};
         Object.keys(localRequests).forEach(dateString => {
             const request = localRequests[dateString];
             const date = new Date(dateString);
             const day = date.getDate();
+            
+            console.log(`処理中: ${dateString} (日: ${day}) => "${request}"`);
             
             if (request === 'off') {
                 apiRequests[day] = {
@@ -386,6 +391,7 @@ class DataConverter {
                     preferredStartTime: null,
                     preferredEndTime: null
                 };
+                console.log(`✓ 日${day} => 休み希望`);
             } else if (request && request.includes('-')) {
                 // 時間帯形式 "09:00-17:00"
                 const [startTime, endTime] = request.split('-');
@@ -394,6 +400,7 @@ class DataConverter {
                     preferredStartTime: startTime + ':00', // HH:MM:SS形式にする
                     preferredEndTime: endTime + ':00'
                 };
+                console.log(`✓ 日${day} => 時間帯希望: ${startTime}:00-${endTime}:00`);
             } else if (request === 'custom') {
                 // カスタム時間帯は別途処理される
                 apiRequests[day] = {
@@ -401,25 +408,52 @@ class DataConverter {
                     preferredStartTime: null,
                     preferredEndTime: null
                 };
+                console.log(`✓ 日${day} => カスタム時間帯（空）`);
+            } else if (request) {
+                console.log(`⚠️ 日${day} => 認識できないリクエスト: "${request}"`);
             }
         });
+        
+        console.log('変換結果:', apiRequests);
         return apiRequests;
     }
 
     static requestsFromApi(apiRequests) {
+        console.log('=== requestsFromApi: データ変換開始 ===');
+        console.log('API生データ:', apiRequests);
+        
         const localRequests = {};
+        
+        if (!apiRequests || !Array.isArray(apiRequests)) {
+            console.log('APIレスポンスが無効またはからの配列');
+            return localRequests;
+        }
+        
         apiRequests.forEach(request => {
-            const dateString = `${request.year}-${String(request.month).padStart(2, '0')}-${String(request.day).padStart(2, '0')}`;
+            console.log('処理中のリクエスト:', request);
             
-            if (request.is_off_requested) {
+            const dateString = `${request.year}-${String(request.month).padStart(2, '0')}-${String(request.day).padStart(2, '0')}`;
+            console.log('生成される日付文字列:', dateString);
+            
+            if (request.is_off_requested == 1) {
                 localRequests[dateString] = 'off';
+                console.log(`✓ ${dateString} => 'off' (休み希望)`);
             } else if (request.preferred_time_start && request.preferred_time_end) {
                 // 時間を HH:MM-HH:MM 形式に変換
                 const startTime = request.preferred_time_start.substring(0, 5);
                 const endTime = request.preferred_time_end.substring(0, 5);
                 localRequests[dateString] = `${startTime}-${endTime}`;
+                console.log(`✓ ${dateString} => '${startTime}-${endTime}' (時間帯希望)`);
+            } else {
+                console.log(`⚠️ ${dateString} => データ不整合:`, {
+                    is_off_requested: request.is_off_requested,
+                    preferred_time_start: request.preferred_time_start,
+                    preferred_time_end: request.preferred_time_end
+                });
             }
         });
+        
+        console.log('変換結果:', localRequests);
         return localRequests;
     }
 

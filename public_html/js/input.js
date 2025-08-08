@@ -247,9 +247,15 @@ $(document).ready(function() {
         const month = currentDate.getMonth() + 1;
         
         try {
+            console.log('=== シフト希望保存開始 ===');
+            console.log('保存対象データ:', preferences);
+            
             // データをAPI形式に変換
             const apiRequests = dataConverter.requestsToApi(preferences);
+            console.log('API形式に変換したデータ:', apiRequests);
+            
             await apiClient.saveShiftRequests(currentUser.username, year, month, apiRequests);
+            console.log('保存完了');
             showSuccess('シフト希望を保存しました。');
         } catch (error) {
             console.error('シフト希望保存エラー:', error);
@@ -327,14 +333,21 @@ $(document).ready(function() {
         // API経由で保存済みのシフト希望を取得
         let preferences = {};
         try {
+            console.log('=== シフト希望データ取得開始 ===');
+            console.log('従業員コード:', currentUser.username);
+            console.log('年月:', year, month);
+            
             const apiRequests = await apiClient.getShiftRequests(currentUser.username, year, month);
+            console.log('API生データ:', apiRequests);
+            
             preferences = dataConverter.requestsFromApi(apiRequests);
-            console.log('シフト希望入力: API経由で読み込んだデータ:', preferences);
+            console.log('変換後データ:', preferences);
+            console.log('変換後データのキー数:', Object.keys(preferences).length);
         } catch (error) {
             console.error('シフト希望読み込みエラー:', error);
             // エラー時はローカルストレージから読み込み
             preferences = dataManager.getEmployeeRequests(currentUser.username, year, month);
-            console.log('シフト希望入力: localStorage経由で読み込んだデータ:', preferences);
+            console.log('localStorage経由で読み込んだデータ:', preferences);
         }
         
         $('.shift-select').each(function() {
