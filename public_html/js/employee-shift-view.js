@@ -51,15 +51,42 @@ $(document).ready(function() {
         
         currentUser = user;
         
-        // ユーザー名を表示
-        const displayName = getUserDisplayName(user.username);
-        $('#current-user').text('従業員: ' + displayName);
+        // ユーザー名を表示（非同期で取得）
+        updateUserDisplayName();
     }
     
-    // ユーザー表示名を取得
-    function getUserDisplayName(username) {
-        const employee = dataManager.getEmployee(username);
-        return employee ? employee.name : username;
+    // ユーザー表示名を更新（API経由）
+    async function updateUserDisplayName() {
+        try {
+            // まずcurrentUserに名前があるかチェック
+            if (currentUser.name) {
+                $('#current-user').text('従業員: ' + currentUser.name);
+                return;
+            }
+            
+            // API経由で従業員データを取得
+            const apiEmployees = await apiClient.getEmployees();
+            const apiEmployee = apiEmployees.find(emp => 
+                emp.employee_code === currentUser.username || 
+                emp.employee_code === `emp${currentUser.username}` ||
+                emp.name === currentUser.name
+            );
+            
+            if (apiEmployee) {
+                $('#current-user').text('従業員: ' + apiEmployee.name);
+                // currentUserにも名前を保存
+                currentUser.name = apiEmployee.name;
+            } else {
+                // フォールバック: localStorageから取得
+                const employee = dataManager.getEmployee(currentUser.username);
+                const displayName = employee ? employee.name : currentUser.username;
+                $('#current-user').text('従業員: ' + displayName);
+            }
+        } catch (error) {
+            console.error('従業員名取得エラー:', error);
+            // エラー時はusernameを表示
+            $('#current-user').text('従業員: ' + currentUser.username);
+        }
     }
     
     // データ読み込み
