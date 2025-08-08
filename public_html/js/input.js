@@ -352,15 +352,44 @@ $(document).ready(function() {
         console.log('loadEmployeeConditions: 関数開始');
         console.log('currentUser:', currentUser);
         
-        const employee = dataManager.getEmployee(currentUser.username);
-        console.log('取得した従業員データ:', employee);
+        // まずlocalStorageから取得を試行
+        let employee = dataManager.getEmployee(currentUser.username);
+        console.log('localStorage従業員データ:', employee);
+        
+        // localStorageで見つからない場合、API経由で取得
+        if (!employee) {
+            console.log('localStorageに従業員データなし、API経由で取得します');
+            try {
+                const apiEmployees = await apiClient.getEmployees();
+                console.log('API全従業員データ:', apiEmployees);
+                
+                // usernameでマッチする従業員を検索
+                const apiEmployee = apiEmployees.find(emp => 
+                    emp.employee_code === currentUser.username || 
+                    emp.employee_code === `emp${currentUser.username}` ||
+                    emp.name === currentUser.name
+                );
+                
+                console.log('マッチした従業員:', apiEmployee);
+                
+                if (apiEmployee) {
+                    employee = dataConverter.employeeFromApi(apiEmployee);
+                    console.log('API→localStorage形式変換後:', employee);
+                }
+            } catch (error) {
+                console.error('API経由での従業員データ取得エラー:', error);
+            }
+        }
         
         if (!employee) {
-            console.log('⚠️ 従業員データが見つかりません - 早期return');
+            console.log('⚠️ 従業員データが見つかりません（localStorage・API両方）- 早期return');
+            console.log('検索対象username:', currentUser.username);
+            console.log('検索対象name:', currentUser.name);
             return;
         }
         
         console.log('✓ 従業員データ確認完了、API取得処理に進みます');
+        console.log('最終従業員データ:', employee);
         
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
