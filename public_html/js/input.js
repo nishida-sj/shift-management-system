@@ -7,19 +7,27 @@ $(document).ready(function() {
     
     // 初期表示
     async function initialize() {
+        console.log('=== 初期化開始 ===');
         await renderCalendar();
+        console.log('=== 初期化完了 ===');
     }
     initialize();
     
     // 月移動ボタン
     $('#prev-month').on('click', async function() {
+        console.log('=== 前月ボタンクリック ===');
         currentDate.setMonth(currentDate.getMonth() - 1);
+        console.log('新しい表示月:', currentDate.getFullYear(), currentDate.getMonth() + 1);
         await renderCalendar();
+        console.log('前月移動完了');
     });
     
     $('#next-month').on('click', async function() {
+        console.log('=== 次月ボタンクリック ===');
         currentDate.setMonth(currentDate.getMonth() + 1);
+        console.log('新しい表示月:', currentDate.getFullYear(), currentDate.getMonth() + 1);
         await renderCalendar();
+        console.log('次月移動完了');
     });
     
     // 保存ボタン
@@ -63,8 +71,10 @@ $(document).ready(function() {
     
     // カレンダー描画
     async function renderCalendar() {
+        console.log('=== renderCalendar開始 ===');
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
+        console.log('描画対象:', year + '年' + (month + 1) + '月');
         
         // 月表示を更新
         $('#current-month').text(year + '年' + (month + 1) + '月のシフト希望');
@@ -120,10 +130,13 @@ $(document).ready(function() {
         // 時間帯指定の表示切り替えイベント（loadEmployeeConditions内で再設定されるため、ここでは初期設定のみ）
         
         // timepickerを初期化
+        console.log('timepicker初期化完了');
         initializeTimePickers();
         
         // 従業員の固定条件を反映（保存済みデータも同時に復元）
+        console.log('loadEmployeeConditions開始');
         await loadEmployeeConditions();
+        console.log('loadEmployeeConditions完了');
     }
     
     // timepicker初期化
