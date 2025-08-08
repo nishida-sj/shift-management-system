@@ -108,7 +108,9 @@ $(document).ready(function() {
         
         // 行事選択オプションを作成
         let eventOptions = '<option value="">選択なし</option>';
+        console.log('カレンダー描画: 行事選択肢を作成中');
         eventMaster.forEach(event => {
+            console.log(`  行事: ID=${event.id}(${typeof event.id}), 名前=${event.name}`);
             eventOptions += `<option value="${event.id}">${event.name}</option>`;
         });
         
@@ -168,13 +170,24 @@ $(document).ready(function() {
             const eventId = $(this).val();
             const infoContainer = $(this).siblings('.event-info');
             
+            console.log('行事情報更新: 選択されたID =', eventId, '(型:', typeof eventId, ')');
+            
             if (eventId) {
-                const event = eventMaster.find(e => e.id === eventId);
+                // IDの型変換を試す（文字列→数値、数値→文字列）
+                const event = eventMaster.find(e => {
+                    const match = e.id == eventId || e.id === eventId || e.id === parseInt(eventId) || e.id === String(eventId);
+                    if (match) {
+                        console.log('行事発見:', e.id, '(型:', typeof e.id, ') = ', e.name);
+                    }
+                    return match;
+                });
+                
                 if (event) {
+                    console.log('行事詳細:', event);
                     let infoText = '';
                     
                     // 事務業務要件
-                    if (event.requirements.office && event.requirements.office.length > 0) {
+                    if (event.requirements && event.requirements.office && event.requirements.office.length > 0) {
                         infoText += '<div style="color: #2980b9;"><strong>事務:</strong>';
                         event.requirements.office.forEach(req => {
                             infoText += `<br>${req.time}(${req.count}人)`;
@@ -183,7 +196,7 @@ $(document).ready(function() {
                     }
                     
                     // 調理業務要件
-                    if (event.requirements.cooking && event.requirements.cooking.length > 0) {
+                    if (event.requirements && event.requirements.cooking && event.requirements.cooking.length > 0) {
                         infoText += '<div style="color: #e67e22; margin-top: 5px;"><strong>調理:</strong>';
                         event.requirements.cooking.forEach(req => {
                             infoText += `<br>${req.time}(${req.count}人)`;
@@ -191,9 +204,14 @@ $(document).ready(function() {
                         infoText += '</div>';
                     }
                     
+                    if (!infoText) {
+                        infoText = '<div style="color: #666;">要件設定なし</div>';
+                    }
+                    
                     infoContainer.html(infoText);
                 } else {
-                    infoContainer.html('<span style="color: #e74c3c;">行事が見つかりません</span>');
+                    console.error('行事が見つかりません。利用可能な行事:', eventMaster.map(e => ({ id: e.id, type: typeof e.id, name: e.name })));
+                    infoContainer.html('<span style="color: #e74c3c;">行事が見つかりません (ID: ' + eventId + ')</span>');
                 }
             } else {
                 infoContainer.html('');
