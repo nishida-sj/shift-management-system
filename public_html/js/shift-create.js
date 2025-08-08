@@ -319,7 +319,17 @@ $(document).ready(function() {
         }
         
         // 従業員の時間帯希望チェック（カスタム入力含む）
-        const requests = dataManager.getEmployeeRequests(employee.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
+        // 注意: この関数は個別のセル編集時に呼ばれるため、リアルタイムでAPI取得する
+        // 将来的にはキャッシュ機構を検討
+        let requests = {};
+        try {
+            const apiRequests = await apiClient.getShiftRequests(employee.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
+            requests = dataConverter.requestsFromApi(apiRequests);
+        } catch (error) {
+            // エラー時はlocalStorageからフォールバック
+            requests = dataManager.getEmployeeRequests(employee.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
+        }
+        
         const employeePreference = requests[dateString];
         
         if (employeePreference && employeePreference !== 'off' && employeePreference !== '') {
@@ -335,7 +345,7 @@ $(document).ready(function() {
     }
     
     // シフト自動作成
-    function autoCreateShift() {
+    async function autoCreateShift() {
         if (!confirm('現在のシフトデータを削除して自動作成しますか？')) {
             return;
         }
@@ -366,7 +376,7 @@ $(document).ready(function() {
             if (!event) continue;
             
             // この日のシフト作成を試行
-            const dayResult = createDayShift(employees, dateString, event, dayOfWeek);
+            const dayResult = await createDayShift(employees, dateString, event, dayOfWeek);
             if (dayResult) {
                 successCount++;
             } else {
@@ -381,7 +391,21 @@ $(document).ready(function() {
     }
     
     // 1日のシフト作成（メイン業務優先ロジック）
-    function createDayShift(employees, dateString, event, dayOfWeek) {
+    async function createDayShift(employees, dateString, event, dayOfWeek) {
+        // シフト希望データを事前に取得
+        const shiftRequests = {};
+        for (const emp of employees) {
+            try {
+                const apiRequests = await apiClient.getShiftRequests(emp.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
+                shiftRequests[emp.code] = dataConverter.requestsFromApi(apiRequests);
+                console.log(`従業員 ${emp.code} のシフト希望:`, shiftRequests[emp.code]);
+            } catch (error) {
+                console.error(`従業員 ${emp.code} のシフト希望取得エラー:`, error);
+                // エラー時はlocalStorageからフォールバック
+                shiftRequests[emp.code] = dataManager.getEmployeeRequests(emp.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
+            }
+        }
+        
         // 利用可能な従業員を取得
         const availableEmployees = employees.filter(emp => {
             // 曜日別出勤可能時間チェック
@@ -390,8 +414,11 @@ $(document).ready(function() {
             }
             
             // 休み希望チェック
-            const requests = dataManager.getEmployeeRequests(emp.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
-            if (requests[dateString] === 'off') return false;
+            const requests = shiftRequests[emp.code] || {};
+            if (requests[dateString] === 'off') {
+                console.log(`従業員 ${emp.name} は ${dateString} に休み希望`);
+                return false;
+            }
             
             return true;
         });
@@ -409,7 +436,7 @@ $(document).ready(function() {
                 // Step 1: メイン業務として該当する従業員を優先配置
                 const mainEmployees = availableEmployees.filter(emp => 
                     hasMainBusinessType(emp, businessTypeCode) &&
-                    canWorkAtTime(emp, dayOfWeek, requiredTime, dateString) &&
+                    canWorkAtTime(emp, dayOfWeek, requiredTime, dateString, shiftRequests) &&
                     !currentShift[emp.code][dateString] // 既に配置済みでない
                 );
                 
@@ -426,7 +453,7 @@ $(document).ready(function() {
                 if (assignedCount < requiredCount) {
                     const subEmployees = availableEmployees.filter(emp => 
                         hasSubBusinessType(emp, businessTypeCode) &&
-                        canWorkAtTime(emp, dayOfWeek, requiredTime, dateString) &&
+                        canWorkAtTime(emp, dayOfWeek, requiredTime, dateString, shiftRequests) &&
                         !currentShift[emp.code][dateString] // 既に配置済みでない
                     );
                     
@@ -459,7 +486,7 @@ $(document).ready(function() {
     }
     
     // 従業員が指定時間帯に勤務可能かチェック（カスタム時間帯対応含む）
-    function canWorkAtTime(employee, dayOfWeek, requiredTime, dateString) {
+    function canWorkAtTime(employee, dayOfWeek, requiredTime, dateString, shiftRequests) {
         // 曜日別出勤可能時間をチェック
         if (!employee.conditions.weeklySchedule || !employee.conditions.weeklySchedule[dayOfWeek]) {
             return false;
@@ -477,15 +504,22 @@ $(document).ready(function() {
             return true;
         }
         
-        // 従業員の時間帯希望をチェック（カスタム入力含む）
-        const requests = dataManager.getEmployeeRequests(employee.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
+        // 従業員の時間帯希望をチェック（API経由で取得）
+        const requests = shiftRequests[employee.code] || {};
         const employeePreference = requests[dateString];
+        
+        console.log(`従業員 ${employee.name} の ${dateString} 希望: "${employeePreference}"`);
         
         if (employeePreference && employeePreference !== 'off' && employeePreference !== '') {
             // カスタム時間帯の場合、重複チェック
             if (isTimeOverlap(employeePreference, requiredTime)) {
+                console.log(`✓ 時間帯重複OK: ${employeePreference} と ${requiredTime}`);
                 return true;
             }
+        } else if (!employeePreference || employeePreference === '') {
+            // 「選択無し」の場合は、基本的な条件（曜日別出勤可能時間）を満たしていればOK
+            console.log(`選択無し → 基本条件で判定: ${daySchedule.includes(requiredTime)}`);
+            return daySchedule.includes(requiredTime);
         }
         
         return false;
