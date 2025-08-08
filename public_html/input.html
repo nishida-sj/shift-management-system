@@ -16,26 +16,46 @@
 
     <div class="container">
         <div class="card">
-            <!-- 1行目：従業員名 -->
-            <div class="employee-name-section" style="margin-bottom: 15px;">
-                <h2 id="current-user" class="user-name" style="color: #2c3e50; margin: 0;">従業員: 山田太郎</h2>
+            <!-- PC用の元レイアウト -->
+            <div class="header-section" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 id="current-user" class="user-name" style="color: #2c3e50;">従業員: 山田太郎</h2>
+                <div class="nav-buttons">
+                    <a href="employee-shift-view.html" class="btn btn-primary" style="margin-right: 10px;">確定シフト確認</a>
+                    <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+                </div>
             </div>
 
-            <!-- 2行目：年度・月表示 -->
-            <div class="month-display-section" style="margin-bottom: 15px;">
-                <h3 id="current-month" class="month-title" style="color: #34495e; margin: 0;">2024年8月のシフト希望</h3>
+            <div class="month-section" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h3 id="current-month" class="month-title" style="color: #34495e;">2024年8月のシフト希望</h3>
+                <div class="month-nav-buttons">
+                    <button id="prev-month" class="btn btn-secondary">前月</button>
+                    <button id="next-month" class="btn btn-secondary">次月</button>
+                </div>
             </div>
 
-            <!-- 3行目：確定シフトボタン・ログアウトボタン -->
-            <div class="action-nav-section" style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <a href="employee-shift-view.html" class="btn btn-primary">確定シフト確認</a>
-                <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
-            </div>
+            <!-- モバイル用の順序指定レイアウト（CSS で制御） -->
+            <div class="mobile-layout" style="display: none;">
+                <!-- 1行目：従業員名 -->
+                <div class="employee-name-section" style="text-align: center; margin-bottom: 15px;">
+                    <h2 class="user-name-mobile" style="color: #2c3e50; margin: 0;">従業員: 山田太郎</h2>
+                </div>
 
-            <!-- 4行目：前月・次月ボタン -->
-            <div class="month-nav-section" style="display: flex; gap: 10px; margin-bottom: 30px;">
-                <button id="prev-month" class="btn btn-secondary">前月</button>
-                <button id="next-month" class="btn btn-secondary">次月</button>
+                <!-- 2行目：年度・月表示 -->
+                <div class="month-display-section" style="text-align: center; margin-bottom: 15px;">
+                    <h3 class="month-title-mobile" style="color: #34495e; margin: 0;">2024年8月のシフト希望</h3>
+                </div>
+
+                <!-- 3行目：確定シフトボタン・ログアウトボタン -->
+                <div class="action-nav-section" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 15px;">
+                    <a href="employee-shift-view.html" class="btn btn-primary">確定シフト確認</a>
+                    <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+                </div>
+
+                <!-- 4行目：前月・次月ボタン -->
+                <div class="month-nav-section" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 30px;">
+                    <button id="prev-month-mobile" class="btn btn-secondary">前月</button>
+                    <button id="next-month-mobile" class="btn btn-secondary">次月</button>
+                </div>
             </div>
 
             <div id="success-message" class="alert alert-success" style="display: none;"></div>

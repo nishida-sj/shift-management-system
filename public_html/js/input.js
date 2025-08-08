@@ -13,8 +13,8 @@ $(document).ready(function() {
     }
     initialize();
     
-    // 月移動ボタン
-    $('#prev-month').on('click', async function() {
+    // 月移動ボタン（PC・モバイル両方対応）
+    $('#prev-month, #prev-month-mobile').on('click', async function() {
         console.log('=== 前月ボタンクリック ===');
         currentDate.setMonth(currentDate.getMonth() - 1);
         console.log('新しい表示月:', currentDate.getFullYear(), currentDate.getMonth() + 1);
@@ -22,7 +22,7 @@ $(document).ready(function() {
         console.log('前月移動完了');
     });
     
-    $('#next-month').on('click', async function() {
+    $('#next-month, #next-month-mobile').on('click', async function() {
         console.log('=== 次月ボタンクリック ===');
         currentDate.setMonth(currentDate.getMonth() + 1);
         console.log('新しい表示月:', currentDate.getFullYear(), currentDate.getMonth() + 1);
@@ -68,6 +68,7 @@ $(document).ready(function() {
             // まずcurrentUserに名前があるかチェック
             if (currentUser.name) {
                 $('#current-user').text('従業員: ' + currentUser.name);
+                $('.user-name-mobile').text('従業員: ' + currentUser.name);
                 return;
             }
             
@@ -81,6 +82,7 @@ $(document).ready(function() {
             
             if (apiEmployee) {
                 $('#current-user').text('従業員: ' + apiEmployee.name);
+                $('.user-name-mobile').text('従業員: ' + apiEmployee.name);
                 // currentUserにも名前を保存
                 currentUser.name = apiEmployee.name;
             } else {
@@ -88,11 +90,13 @@ $(document).ready(function() {
                 const employee = dataManager.getEmployee(currentUser.username);
                 const displayName = employee ? employee.name : currentUser.username;
                 $('#current-user').text('従業員: ' + displayName);
+                $('.user-name-mobile').text('従業員: ' + displayName);
             }
         } catch (error) {
             console.error('従業員名取得エラー:', error);
             // エラー時はusernameを表示
             $('#current-user').text('従業員: ' + currentUser.username);
+            $('.user-name-mobile').text('従業員: ' + currentUser.username);
         }
     }
     
@@ -103,8 +107,9 @@ $(document).ready(function() {
         const month = currentDate.getMonth();
         console.log('描画対象:', year + '年' + (month + 1) + '月');
         
-        // 月表示を更新
+        // 月表示を更新（PC・モバイル両方）
         $('#current-month').text(year + '年' + (month + 1) + '月のシフト希望');
+        $('.month-title-mobile').text(year + '年' + (month + 1) + '月のシフト希望');
         
         // 月の最初と最後の日を取得
         const firstDay = new Date(year, month, 1);

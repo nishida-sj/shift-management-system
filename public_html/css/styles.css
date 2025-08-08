@@ -256,16 +256,43 @@ body {
         font-size: 18px;
     }
     
-    /* 従業員名表示の調整 */
-    #current-user {
-        font-size: 16px !important;
-        margin-bottom: 10px !important;
+    /* PC用レイアウトを非表示 */
+    .header-section,
+    .month-section {
+        display: none !important;
     }
     
-    /* 月表示テキストの調整 */
-    #current-month {
+    /* モバイル用レイアウトを表示 */
+    .mobile-layout {
+        display: block !important;
+    }
+    
+    /* モバイル用レイアウトスタイル */
+    .employee-name-section {
+        text-align: center !important;
+    }
+    
+    .month-display-section {
+        text-align: center !important;
+    }
+    
+    .user-name-mobile {
         font-size: 16px !important;
-        margin-bottom: 10px !important;
+    }
+    
+    .month-title-mobile {
+        font-size: 16px !important;
+    }
+    
+    /* ボタンセクションの中央揃え */
+    .action-nav-section {
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+    }
+    
+    .month-nav-section {
+        flex-wrap: wrap !important;
+        justify-content: center !important;
     }
     
     /* ボタンサイズの調整 */
@@ -273,46 +300,6 @@ body {
         padding: 8px 12px;
         font-size: 14px;
         margin-bottom: 5px;
-    }
-    
-    /* 新しいレイアウト用のスタイル調整 */
-    .employee-name-section {
-        text-align: left !important;
-    }
-    
-    .month-display-section {
-        text-align: left !important;
-    }
-    
-    /* ボタンセクションのレスポンシブ対応 */
-    .action-nav-section {
-        flex-wrap: wrap !important;
-        justify-content: flex-start !important;
-    }
-    
-    .month-nav-section {
-        flex-wrap: wrap !important;
-        justify-content: flex-start !important;
-    }
-    
-    /* 古いクラスの互換性維持 */
-    .header-section {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 10px;
-    }
-    
-    .month-section {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 10px;
-        margin-bottom: 20px !important;
-    }
-    
-    .nav-buttons, .month-nav-buttons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
     }
     
     /* アクションボタンの調整 */
