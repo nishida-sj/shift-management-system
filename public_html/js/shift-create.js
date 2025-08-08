@@ -387,9 +387,14 @@ $(document).ready(function() {
                 return false;
             }
             
-            // 固定時間帯チェック
-            if (employee.conditions.weeklySchedule[dayOfWeek].includes(shift)) {
-                return false;
+            // 時間範囲包含チェック（固定時間帯）
+            const daySchedule = employee.conditions.weeklySchedule[dayOfWeek];
+            for (const availableTime of daySchedule) {
+                if (availableTime === '終日') continue;
+                
+                if (isTimeRangeIncluded(shift, availableTime)) {
+                    return false; // 範囲内なので条件違反ではない
+                }
             }
             
             // 従業員の時間帯希望チェック（localStorageのみ - 同期処理）
@@ -621,39 +626,75 @@ $(document).ready(function() {
         }
         
         // 条件設定に基づく利用可能従業員の絞り込み
+        console.log(`=== ${dateString} 利用可能従業員の絞り込み開始 ===`);
+        console.log(`総従業員数: ${employees.length}`);
+        
         const availableEmployees = filterAvailableEmployees(employees, dateString, dayOfWeek, shiftRequests, shiftConditions);
         
+        console.log(`利用可能従業員数: ${availableEmployees.length}/${employees.length}`);
+        
         if (availableEmployees.length === 0) {
-            console.log('利用可能な従業員がいません');
+            console.log('❌ 利用可能な従業員がいません');
             return false;
         }
         
-        console.log(`利用可能従業員: ${availableEmployees.map(e => e.name).join(', ')}`);
+        console.log(`✅ 利用可能従業員: ${availableEmployees.map(e => e.name).join(', ')}`);
         
         let assigned = false;
         
         // 各業務区分の要件を処理
+        console.log(`=== ${dateString} 要件処理開始 ===`);
+        console.log(`行事要件:`, JSON.stringify(event.requirements, null, 2));
+        
         if (event.requirements) {
             Object.keys(event.requirements).forEach(businessTypeCode => {
                 const requirements = event.requirements[businessTypeCode];
+                console.log(`\n--- 業務区分: ${businessTypeCode} ---`);
                 
-                requirements.forEach(req => {
+                requirements.forEach((req, reqIndex) => {
                     const requiredTime = req.time;
                     const requiredCount = req.count;
                     
-                    console.log(`要件: ${businessTypeCode} ${requiredTime} ${requiredCount}人`);
+                    console.log(`📋 要件 ${reqIndex + 1}: ${businessTypeCode} ${requiredTime} ${requiredCount}人必要`);
+                    
+                    // この要件に該当する従業員をフィルタ
+                    const suitableEmployees = availableEmployees.filter(emp => {
+                        // 業務区分チェック
+                        const hasBusinessType = emp.businessTypes && emp.businessTypes.some(bt => bt.code === businessTypeCode);
+                        if (!hasBusinessType) {
+                            console.log(`  ${emp.name}: 業務区分 ${businessTypeCode} に該当しない`);
+                            return false;
+                        }
+                        
+                        // 既に配置済みでないかチェック
+                        if (currentShift[emp.code][dateString]) {
+                            console.log(`  ${emp.name}: 既に配置済み (${currentShift[emp.code][dateString]})`);
+                            return false;
+                        }
+                        
+                        return true;
+                    });
+                    
+                    console.log(`  該当従業員数: ${suitableEmployees.length}人`);
+                    console.log(`  該当従業員: ${suitableEmployees.map(e => e.name).join(', ') || 'なし'}`);
                     
                     // 従業員を優先順位でソート
                     const sortedEmployees = sortEmployeesByPriority(
-                        availableEmployees, businessTypeCode, dateString, 
+                        suitableEmployees, businessTypeCode, dateString, 
                         shiftRequests, workStats, shiftConditions
                     );
+                    
+                    console.log(`  優先順位ソート後: ${sortedEmployees.map(e => e.name).join(', ') || 'なし'}`);
                     
                     // 必要人数まで配置
                     let assignedCount = 0;
                     for (const emp of sortedEmployees) {
-                        if (assignedCount >= requiredCount) break;
-                        if (currentShift[emp.code][dateString]) continue; // 既に配置済み
+                        if (assignedCount >= requiredCount) {
+                            console.log(`  必要人数 ${requiredCount} 人に達したため配置終了`);
+                            break;
+                        }
+                        
+                        console.log(`  🔍 ${emp.name} の配置可能性をチェック中...`);
                         
                         // 最終チェック
                         if (canAssignEmployee(emp, dateString, requiredTime, shiftRequests, shiftConditions)) {
@@ -662,11 +703,17 @@ $(document).ready(function() {
                             assignedCount++;
                             assigned = true;
                             
-                            console.log(`✓ ${emp.name} を ${requiredTime} に配置`);
+                            console.log(`  ✅ ${emp.name} を ${requiredTime} に配置 (${assignedCount}/${requiredCount})`);
+                        } else {
+                            console.log(`  ❌ ${emp.name} は配置不可`);
                         }
                     }
                     
-                    console.log(`${businessTypeCode} ${requiredTime}: 必要${requiredCount}人, 配置${assignedCount}人`);
+                    if (assignedCount < requiredCount) {
+                        console.log(`  ⚠️ ${businessTypeCode} ${requiredTime}: 必要${requiredCount}人, 配置${assignedCount}人 (${requiredCount - assignedCount}人不足)`);
+                    } else {
+                        console.log(`  ✅ ${businessTypeCode} ${requiredTime}: 必要${requiredCount}人, 配置${assignedCount}人 (充足)`);
+                    }
                 });
             });
         }
@@ -676,20 +723,28 @@ $(document).ready(function() {
     
     // 条件に基づく利用可能従業員の絞り込み
     function filterAvailableEmployees(employees, dateString, dayOfWeek, shiftRequests, shiftConditions) {
+        console.log(`--- 従業員フィルタリング開始 (曜日: ${dayOfWeek}) ---`);
+        
         return employees.filter(emp => {
+            console.log(`🔍 ${emp.name} のチェック開始:`);
+            
             // 曜日別出勤可能時間チェック
             if (!emp.conditions.weeklySchedule || !emp.conditions.weeklySchedule[dayOfWeek]) {
-                console.log(`${emp.name}: 曜日${dayOfWeek}は出勤不可`);
+                console.log(`  ❌ ${emp.name}: 曜日${dayOfWeek}の勤務時間設定なし`);
                 return false;
             }
+            
+            const daySchedule = emp.conditions.weeklySchedule[dayOfWeek];
+            console.log(`  ✅ ${emp.name}: 曜日${dayOfWeek}の勤務可能時間 = ${JSON.stringify(daySchedule)}`);
             
             // 休み希望チェック（条件設定で有効な場合）
             if (shiftConditions.priorities.respectOffRequests) {
                 const requests = shiftRequests[emp.code] || {};
                 if (requests[dateString] === 'off') {
-                    console.log(`${emp.name}: ${dateString} に休み希望`);
+                    console.log(`  ❌ ${emp.name}: ${dateString} に休み希望`);
                     return false;
                 }
+                console.log(`  ✅ ${emp.name}: 休み希望なし (希望: "${requests[dateString] || '設定なし'}")`);
             }
             
             // 週最大労働日数チェック
@@ -697,11 +752,13 @@ $(document).ready(function() {
                 const weekStart = getWeekStart(new Date(dateString));
                 const weekWorkDays = countWeekWorkDays(emp.code, weekStart);
                 if (weekWorkDays >= emp.conditions.maxDaysPerWeek) {
-                    console.log(`${emp.name}: 週最大労働日数 ${emp.conditions.maxDaysPerWeek} 日を超過`);
+                    console.log(`  ❌ ${emp.name}: 週最大労働日数 ${emp.conditions.maxDaysPerWeek} 日を超過 (現在: ${weekWorkDays}日)`);
                     return false;
                 }
+                console.log(`  ✅ ${emp.name}: 週労働日数OK (${weekWorkDays}/${emp.conditions.maxDaysPerWeek}日)`);
             }
             
+            console.log(`  ✅ ${emp.name}: 全条件クリア - 利用可能`);
             return true;
         });
     }
@@ -745,19 +802,27 @@ $(document).ready(function() {
         
         // 曜日別出勤可能時間チェック
         if (!employee.conditions.weeklySchedule || !employee.conditions.weeklySchedule[dayOfWeek]) {
+            console.log(`${employee.name}: 曜日${dayOfWeek}の勤務時間設定なし`);
             return false;
         }
         
         const daySchedule = employee.conditions.weeklySchedule[dayOfWeek];
+        console.log(`${employee.name}: 曜日${dayOfWeek}の勤務可能時間 = ${JSON.stringify(daySchedule)}`);
         
         // 「終日」設定チェック
         if (daySchedule.includes('終日')) {
+            console.log(`${employee.name}: 終日設定あり → OK`);
             return true;
         }
         
-        // 固定時間帯チェック
-        if (daySchedule.includes(requiredTime)) {
-            return true;
+        // 時間範囲包含チェック（固定時間帯）
+        for (const availableTime of daySchedule) {
+            if (availableTime === '終日') continue;
+            
+            if (isTimeRangeIncluded(requiredTime, availableTime)) {
+                console.log(`${employee.name}: ${requiredTime} が ${availableTime} に含まれる → OK`);
+                return true;
+            }
         }
         
         // 時間帯希望チェック（条件設定で有効な場合）
@@ -767,11 +832,13 @@ $(document).ready(function() {
             
             if (employeePreference && employeePreference !== 'off' && employeePreference !== '') {
                 if (isTimeOverlap(employeePreference, requiredTime)) {
+                    console.log(`${employee.name}: 希望時間帯 ${employeePreference} と ${requiredTime} が重複 → OK`);
                     return true;
                 }
             }
         }
         
+        console.log(`${employee.name}: ${requiredTime} は利用可能時間に含まれない → NG`);
         return false;
     }
     
@@ -919,9 +986,14 @@ $(document).ready(function() {
             return true;
         }
         
-        // 固定時間帯にマッチするかチェック
-        if (daySchedule.includes(requiredTime)) {
-            return true;
+        // 時間範囲包含チェック（固定時間帯）
+        for (const availableTime of daySchedule) {
+            if (availableTime === '終日') continue;
+            
+            if (isTimeRangeIncluded(requiredTime, availableTime)) {
+                console.log(`✓ 時間範囲包含OK: ${requiredTime} が ${availableTime} に含まれる`);
+                return true;
+            }
         }
         
         // 従業員の時間帯希望をチェック（API経由で取得）
@@ -938,8 +1010,15 @@ $(document).ready(function() {
             }
         } else if (!employeePreference || employeePreference === '') {
             // 「選択無し」の場合は、基本的な条件（曜日別出勤可能時間）を満たしていればOK
-            console.log(`選択無し → 基本条件で判定: ${daySchedule.includes(requiredTime)}`);
-            return daySchedule.includes(requiredTime);
+            // 時間範囲包含チェック（再度）
+            for (const availableTime of daySchedule) {
+                if (availableTime === '終日') continue;
+                
+                if (isTimeRangeIncluded(requiredTime, availableTime)) {
+                    console.log(`選択無し → 基本条件OK: ${requiredTime} が ${availableTime} に含まれる`);
+                    return true;
+                }
+            }
         }
         
         return false;
@@ -955,6 +1034,20 @@ $(document).ready(function() {
             return start1 < end2 && end1 > start2;
         } catch (error) {
             console.error('時間帯重複チェックエラー:', error);
+            return false;
+        }
+    }
+    
+    // 時間範囲が包含されるかチェック（requiredTimeがavailableTime内に完全に含まれるか）
+    function isTimeRangeIncluded(requiredTime, availableTime) {
+        try {
+            const [reqStart, reqEnd] = requiredTime.split('-').map(t => timeToMinutes(t));
+            const [availStart, availEnd] = availableTime.split('-').map(t => timeToMinutes(t));
+            
+            // 包含判定：必要時間の開始が利用可能時間の開始以降で、必要時間の終了が利用可能時間の終了以前
+            return reqStart >= availStart && reqEnd <= availEnd;
+        } catch (error) {
+            console.error('時間範囲包含チェックエラー:', error);
             return false;
         }
     }
