@@ -8,26 +8,34 @@ $(document).ready(function() {
     let shiftStatus = 'draft';
     let editingCell = null;
     
+    console.log('シフト作成: ページ読み込み開始');
+    console.log('apiClient利用可能:', typeof apiClient !== 'undefined');
+    console.log('dataConverter利用可能:', typeof dataConverter !== 'undefined');
+    
     // 初期表示
-    loadData();
-    renderShiftTable();
-    updateStatusDisplay();
-    loadNotes();
+    async function initialize() {
+        await loadData();
+        renderShiftTable();
+        updateStatusDisplay();
+        loadNotes();
+    }
+    
+    initialize();
     
     // 月移動ボタン
-    $('#prev-month').on('click', function() {
+    $('#prev-month').on('click', async function() {
         saveCurrentShift();
         currentDate.setMonth(currentDate.getMonth() - 1);
-        loadData();
+        await loadData();
         renderShiftTable();
         updateStatusDisplay();
         loadNotes();
     });
     
-    $('#next-month').on('click', function() {
+    $('#next-month').on('click', async function() {
         saveCurrentShift();
         currentDate.setMonth(currentDate.getMonth() + 1);
-        loadData();
+        await loadData();
         renderShiftTable();
         updateStatusDisplay();
         loadNotes();
@@ -79,24 +87,60 @@ $(document).ready(function() {
     });
     
     // データ読み込み
-    function loadData() {
-        employees = dataManager.getEmployees();
-        eventMaster = dataManager.getEvents();
-        
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        
-        monthlyEvents = dataManager.getMonthlyEvents(year, month);
-        currentShift = dataManager.getConfirmedShift(year, month);
-        shiftStatus = dataManager.getShiftStatus(year, month);
-        
-        // 空のシフトデータを初期化
-        if (Object.keys(currentShift).length === 0) {
-            initializeEmptyShift();
+    async function loadData() {
+        try {
+            console.log('シフト作成: データ読み込み開始');
+            
+            // APIから従業員と行事マスタを取得
+            const [apiEmployees, apiEvents] = await Promise.all([
+                apiClient.getEmployees(),
+                apiClient.getEvents()
+            ]);
+            
+            employees = apiEmployees.map(emp => dataConverter.employeeFromApi(emp));
+            eventMaster = apiEvents.map(event => dataConverter.eventFromApi(event));
+            
+            console.log('シフト作成: 取得した従業員数:', employees.length);
+            console.log('シフト作成: 取得した行事数:', eventMaster.length);
+            
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            // 月間データはlocalStorageから取得（API未実装のため）
+            monthlyEvents = dataManager.getMonthlyEvents(year, month);
+            currentShift = dataManager.getConfirmedShift(year, month);
+            shiftStatus = dataManager.getShiftStatus(year, month);
+            
+            // 空のシフトデータを初期化
+            if (Object.keys(currentShift).length === 0) {
+                initializeEmptyShift();
+            }
+            
+            // セル背景色データを読み込み
+            shiftCellBackgrounds = dataManager.getShiftCellBackgrounds(year, month);
+            
+        } catch (error) {
+            console.error('シフト作成: データ取得エラー:', error);
+            
+            // エラー時はフォールバック
+            employees = dataManager.getEmployees();
+            eventMaster = dataManager.getEvents();
+            
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            monthlyEvents = dataManager.getMonthlyEvents(year, month);
+            currentShift = dataManager.getConfirmedShift(year, month);
+            shiftStatus = dataManager.getShiftStatus(year, month);
+            
+            if (Object.keys(currentShift).length === 0) {
+                initializeEmptyShift();
+            }
+            
+            shiftCellBackgrounds = dataManager.getShiftCellBackgrounds(year, month);
+            
+            showError('データ取得に失敗しました。ローカルデータを使用します。');
         }
-        
-        // セル背景色データを読み込み
-        shiftCellBackgrounds = dataManager.getShiftCellBackgrounds(year, month);
     }
     
     // 空のシフトデータを初期化
