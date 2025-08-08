@@ -16,20 +16,26 @@
 
     <div class="container">
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 id="current-user" style="color: #2c3e50;">従業員: 山田太郎</h2>
-                <div>
-                    <a href="employee-shift-view.html" class="btn btn-primary" style="margin-right: 10px;">確定シフト確認</a>
-                    <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
-                </div>
+            <!-- 1行目：従業員名 -->
+            <div class="employee-name-section" style="margin-bottom: 15px;">
+                <h2 id="current-user" class="user-name" style="color: #2c3e50; margin: 0;">従業員: 山田太郎</h2>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                <h3 id="current-month" style="color: #34495e;">2024年8月のシフト希望</h3>
-                <div>
-                    <button id="prev-month" class="btn btn-secondary">前月</button>
-                    <button id="next-month" class="btn btn-secondary">次月</button>
-                </div>
+            <!-- 2行目：年度・月表示 -->
+            <div class="month-display-section" style="margin-bottom: 15px;">
+                <h3 id="current-month" class="month-title" style="color: #34495e; margin: 0;">2024年8月のシフト希望</h3>
+            </div>
+
+            <!-- 3行目：確定シフトボタン・ログアウトボタン -->
+            <div class="action-nav-section" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <a href="employee-shift-view.html" class="btn btn-primary">確定シフト確認</a>
+                <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+            </div>
+
+            <!-- 4行目：前月・次月ボタン -->
+            <div class="month-nav-section" style="display: flex; gap: 10px; margin-bottom: 30px;">
+                <button id="prev-month" class="btn btn-secondary">前月</button>
+                <button id="next-month" class="btn btn-secondary">次月</button>
             </div>
 
             <div id="success-message" class="alert alert-success" style="display: none;"></div>
@@ -39,7 +45,7 @@
                 <!-- カレンダーはJavaScriptで動的生成 -->
             </div>
 
-            <div style="margin-top: 30px; text-align: center;">
+            <div class="action-buttons" style="margin-top: 30px; text-align: center;">
                 <button id="save-btn" class="btn btn-success" style="margin-right: 10px;">
                     希望を保存
                 </button>

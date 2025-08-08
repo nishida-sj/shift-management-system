@@ -246,6 +246,96 @@ body {
         padding: 10px;
     }
     
+    .card {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    /* ヘッダーテキストの調整 */
+    .header h1 {
+        font-size: 18px;
+    }
+    
+    /* 従業員名表示の調整 */
+    #current-user {
+        font-size: 16px !important;
+        margin-bottom: 10px !important;
+    }
+    
+    /* 月表示テキストの調整 */
+    #current-month {
+        font-size: 16px !important;
+        margin-bottom: 10px !important;
+    }
+    
+    /* ボタンサイズの調整 */
+    .btn {
+        padding: 8px 12px;
+        font-size: 14px;
+        margin-bottom: 5px;
+    }
+    
+    /* 新しいレイアウト用のスタイル調整 */
+    .employee-name-section {
+        text-align: left !important;
+    }
+    
+    .month-display-section {
+        text-align: left !important;
+    }
+    
+    /* ボタンセクションのレスポンシブ対応 */
+    .action-nav-section {
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+    }
+    
+    .month-nav-section {
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+    }
+    
+    /* 古いクラスの互換性維持 */
+    .header-section {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px;
+    }
+    
+    .month-section {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px;
+        margin-bottom: 20px !important;
+    }
+    
+    .nav-buttons, .month-nav-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+    
+    /* アクションボタンの調整 */
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    /* 統計カードのレスポンシブ対応 */
+    .summary-card {
+        margin-bottom: 15px;
+    }
+    
+    .summary-card h5 {
+        font-size: 14px !important;
+    }
+    
+    .summary-card div {
+        font-size: 18px !important;
+    }
+    
     .date-grid {
         grid-template-columns: 1fr;
     }
@@ -258,5 +348,57 @@ body {
     .calendar-table td {
         padding: 6px 2px;
         min-width: 40px;
+        font-size: 12px;
+    }
+    
+    /* シフト表示テーブルの改善 */
+    #shift-table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .calendar-table {
+        min-width: 100%;
+        white-space: nowrap;
+    }
+}
+
+/* より小さな画面（スマートフォン）用の追加調整 */
+@media (max-width: 480px) {
+    .container {
+        padding: 5px;
+    }
+    
+    .card {
+        padding: 10px;
+    }
+    
+    .header h1 {
+        font-size: 16px;
+    }
+    
+    #current-user {
+        font-size: 14px !important;
+    }
+    
+    #current-month {
+        font-size: 14px !important;
+    }
+    
+    .btn {
+        padding: 6px 10px;
+        font-size: 12px;
+        min-width: auto;
+    }
+    
+    /* ボタンコンテナをフレックスボックスで調整 */
+    .nav-buttons, .month-nav-buttons, .action-nav-section, .month-nav-section {
+        justify-content: flex-start;
+        gap: 3px;
+    }
+    
+    .nav-buttons .btn, .month-nav-buttons .btn {
+        flex: none;
+        white-space: nowrap;
     }
 }
