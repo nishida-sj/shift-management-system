@@ -113,20 +113,7 @@ $(document).ready(function() {
         calendarHtml += '</div>';
         $('#calendar-container').html(calendarHtml);
         
-        // 時間帯指定の表示切り替えイベント
-        $('.shift-select').on('change', function() {
-            const customContainer = $(this).siblings('.custom-time-container');
-            if ($(this).val() === 'custom') {
-                customContainer.show();
-                // 時間帯がまだ入力されていない場合はフォーカス
-                if (!customContainer.find('.start-time').val()) {
-                    customContainer.find('.start-time').focus();
-                }
-            } else {
-                customContainer.hide();
-                customContainer.find('.timepicker').val('');
-            }
-        });
+        // 時間帯指定の表示切り替えイベント（loadEmployeeConditions内で再設定されるため、ここでは初期設定のみ）
         
         // timepickerを初期化
         initializeTimePickers();
@@ -418,10 +405,16 @@ $(document).ready(function() {
                 selectElement.html(options);
                 
                 // 保存済みの値を復元
+                console.log(`=== データ復元処理 ===`);
                 console.log(`日付: ${date}, 保存済み値: "${savedValue}", 曜日設定:`, daySchedule);
+                console.log(`利用可能時間帯:`, Array.from(availableSlots));
+                
+                // 選択肢のHTMLを確認
+                console.log(`select要素のoptions:`, selectElement.find('option').map(function() { return $(this).val(); }).get());
                 
                 if (savedValue === 'off') {
                     selectElement.val('off');
+                    console.log(`✓ 休み希望として復元`);
                 } else if (savedValue && Array.from(availableSlots).includes(savedValue)) {
                     // 登録済み時間帯の場合
                     selectElement.val(savedValue);
@@ -433,14 +426,57 @@ $(document).ready(function() {
                     
                     // 時間帯を分解してtimepickerに設定
                     const [startTime, endTime] = savedValue.split('-');
-                    customContainer.find('.start-time').val(startTime);
-                    customContainer.find('.end-time').val(endTime);
+                    const startTimeElement = customContainer.find('.start-time');
+                    const endTimeElement = customContainer.find('.end-time');
+                    
+                    startTimeElement.val(startTime);
+                    endTimeElement.val(endTime);
+                    
+                    // timepickerが初期化されている場合は値を更新
+                    if (startTimeElement.hasClass('hasTimepicker')) {
+                        startTimeElement.timepicker('setTime', startTime);
+                    }
+                    if (endTimeElement.hasClass('hasTimepicker')) {
+                        endTimeElement.timepicker('setTime', endTime);
+                    }
+                    
                     console.log(`✓ カスタム時間帯として復元: ${startTime}-${endTime}`);
                 } else if (savedValue) {
                     console.log(`⚠️ 認識できない保存値: "${savedValue}"`);
+                    console.log(`- 値の型:`, typeof savedValue);
+                    console.log(`- 値の長さ:`, savedValue.length);
+                    console.log(`- 時間形式検証結果:`, validateTimeFormat(savedValue));
+                    
                     // 解釈できない値の場合は空にする
                     selectElement.val('');
+                } else {
+                    console.log(`- 保存値なし、選択無しに設定`);
+                    selectElement.val('');
                 }
+                
+                // 実際に設定された値を確認
+                console.log(`最終的に設定された値: "${selectElement.val()}"`);
+                console.log(`カスタムコンテナ表示状態:`, customContainer.is(':visible'));
+                if (customContainer.is(':visible')) {
+                    console.log(`カスタム時間: ${customContainer.find('.start-time').val()}-${customContainer.find('.end-time').val()}`);
+                }
+                console.log(`====================`);
+            }
+        });
+        
+        // 時間帯指定の表示切り替えイベントを再設定（データ復元後に必要）
+        console.log('シフト選択イベントハンドラーを再設定');
+        $('.shift-select').off('change').on('change', function() {
+            const customContainer = $(this).siblings('.custom-time-container');
+            if ($(this).val() === 'custom') {
+                customContainer.show();
+                // 時間帯がまだ入力されていない場合はフォーカス
+                if (!customContainer.find('.start-time').val()) {
+                    customContainer.find('.start-time').focus();
+                }
+            } else {
+                customContainer.hide();
+                customContainer.find('.timepicker').val('');
             }
         });
     }
