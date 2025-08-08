@@ -366,36 +366,142 @@ $(document).ready(function() {
     function checkShiftViolationSync(employee, dateString, shift) {
         if (!shift) return false;
         
+        // シフト条件設定を取得
+        const shiftConditions = dataManager.getShiftConditions();
+        if (!shiftConditions || !shiftConditions.warnings) {
+            return false; // 設定がない場合は警告を表示しない
+        }
+        
         const date = new Date(dateString);
         const dayOfWeek = date.getDay();
         
-        // 曜日別出勤可能時間チェック
-        if (!employee.conditions.weeklySchedule || !employee.conditions.weeklySchedule[dayOfWeek]) {
-            return true; // その曜日は出勤不可
+        // 従業員の勤務条件違反チェック
+        if (shiftConditions.warnings.warnConditionViolation) {
+            // 曜日別出勤可能時間チェック
+            if (!employee.conditions.weeklySchedule || !employee.conditions.weeklySchedule[dayOfWeek]) {
+                return true; // その曜日は出勤不可
+            }
+            
+            // 「終日」が設定されている場合はどの時間帯でもOK
+            if (employee.conditions.weeklySchedule[dayOfWeek].includes('終日')) {
+                return false;
+            }
+            
+            // 固定時間帯チェック
+            if (employee.conditions.weeklySchedule[dayOfWeek].includes(shift)) {
+                return false;
+            }
+            
+            // 従業員の時間帯希望チェック（localStorageのみ - 同期処理）
+            const requests = dataManager.getEmployeeRequests(employee.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
+            const employeePreference = requests[dateString];
+            
+            if (employeePreference && employeePreference !== 'off' && employeePreference !== '') {
+                // カスタム時間帯の場合、重複チェック
+                if (isTimeOverlap(employeePreference, shift)) {
+                    return false; // 希望時間帯と重複していれば問題なし
+                }
+            }
+            
+            // 条件に合わない場合は警告
+            return true;
         }
         
-        // 「終日」が設定されている場合はどの時間帯でもOK
-        if (employee.conditions.weeklySchedule[dayOfWeek].includes('終日')) {
-            return false;
-        }
-        
-        // 固定時間帯チェック
-        if (employee.conditions.weeklySchedule[dayOfWeek].includes(shift)) {
-            return false;
-        }
-        
-        // 従業員の時間帯希望チェック（localStorageのみ - 同期処理）
-        const requests = dataManager.getEmployeeRequests(employee.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
-        const employeePreference = requests[dateString];
-        
-        if (employeePreference && employeePreference !== 'off' && employeePreference !== '') {
-            // カスタム時間帯の場合、重複チェック
-            if (isTimeOverlap(employeePreference, shift)) {
-                return false; // 希望時間帯と重複していれば問題なし
+        // 連続勤務日数チェック
+        if (shiftConditions.warnings.warnConsecutiveWork) {
+            const consecutiveDays = calculateConsecutiveWorkDays(employee.code, dateString);
+            const maxConsecutive = shiftConditions.basicSettings?.maxConsecutiveDays || 6;
+            if (consecutiveDays > maxConsecutive) {
+                return true;
             }
         }
         
-        return true; // 条件に合わない
+        // 休憩時間不足チェック
+        if (shiftConditions.warnings.warnInsufficientRest) {
+            const hasInsufficientRest = checkInsufficientRest(employee.code, dateString, shift, shiftConditions);
+            if (hasInsufficientRest) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    // 連続勤務日数を計算
+    function calculateConsecutiveWorkDays(employeeCode, targetDateString) {
+        let consecutiveDays = 0;
+        const targetDate = new Date(targetDateString);
+        
+        // 過去方向に連続勤務日数をカウント
+        for (let i = 0; i < 10; i++) { // 最大10日まで遡る
+            const checkDate = new Date(targetDate);
+            checkDate.setDate(targetDate.getDate() - i);
+            const checkDateString = formatDate(checkDate);
+            
+            if (currentShift[employeeCode] && currentShift[employeeCode][checkDateString]) {
+                consecutiveDays++;
+            } else {
+                break;
+            }
+        }
+        
+        return consecutiveDays;
+    }
+    
+    // 休憩時間不足チェック
+    function checkInsufficientRest(employeeCode, dateString, shift, shiftConditions) {
+        const minRestHours = shiftConditions.basicSettings?.minRestHours || 1;
+        const date = new Date(dateString);
+        
+        // 前日と翌日のシフトをチェック
+        const prevDate = new Date(date);
+        prevDate.setDate(date.getDate() - 1);
+        const nextDate = new Date(date);
+        nextDate.setDate(date.getDate() + 1);
+        
+        const prevDateString = formatDate(prevDate);
+        const nextDateString = formatDate(nextDate);
+        
+        const prevShift = currentShift[employeeCode]?.[prevDateString];
+        const nextShift = currentShift[employeeCode]?.[nextDateString];
+        
+        // 簡略化した休憩時間チェック（実際の業務要件に応じて調整）
+        if (prevShift && shift) {
+            const prevEndTime = prevShift.split('-')[1];
+            const currentStartTime = shift.split('-')[0];
+            if (prevEndTime && currentStartTime) {
+                const restHours = calculateRestHours(prevEndTime, currentStartTime);
+                if (restHours < minRestHours) {
+                    return true;
+                }
+            }
+        }
+        
+        if (shift && nextShift) {
+            const currentEndTime = shift.split('-')[1];
+            const nextStartTime = nextShift.split('-')[0];
+            if (currentEndTime && nextStartTime) {
+                const restHours = calculateRestHours(currentEndTime, nextStartTime);
+                if (restHours < minRestHours) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    // 休憩時間を計算
+    function calculateRestHours(endTime, startTime) {
+        const endMinutes = timeToMinutes(endTime);
+        const startMinutes = timeToMinutes(startTime);
+        
+        // 翌日開始の場合を考慮（24時間を加算）
+        const restMinutes = startMinutes >= endMinutes ? 
+            startMinutes - endMinutes : 
+            (24 * 60 + startMinutes) - endMinutes;
+        
+        return restMinutes / 60;
     }
     
     // シフト自動作成
@@ -406,42 +512,302 @@ $(document).ready(function() {
         
         showInfo('シフトを自動作成中...');
         
-        // 初期化
-        initializeEmptyShift();
-        
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
-        const lastDay = new Date(year, month + 1, 0).getDate();
-        
-        let successCount = 0;
-        let skipCount = 0;
-        
-        // 各日ごとに処理
-        for (let day = 1; day <= lastDay; day++) {
-            const date = new Date(year, month, day);
-            const dateString = formatDate(date);
-            const dayOfWeek = date.getDay();
+        try {
+            // シフト条件設定を取得
+            const shiftConditions = dataManager.getShiftConditions();
+            console.log('シフト条件設定:', shiftConditions);
             
-            // 行事情報を取得
-            const eventId = monthlyEvents[dateString];
-            if (!eventId) continue;
+            // 条件設定チェック
+            if (!validateShiftConditions(shiftConditions)) {
+                showError('シフト条件設定が正しく読み込めませんでした。');
+                return;
+            }
             
-            const event = eventMaster.find(e => e.id === eventId);
-            if (!event) continue;
+            // 初期化
+            initializeEmptyShift();
             
-            // この日のシフト作成を試行
-            const dayResult = await createDayShift(employees, dateString, event, dayOfWeek);
-            if (dayResult) {
-                successCount++;
-            } else {
-                skipCount++;
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const lastDay = new Date(year, month + 1, 0).getDate();
+            
+            // 従業員の勤務時間統計初期化
+            const workStats = initializeWorkStats();
+            
+            let successCount = 0;
+            let skipCount = 0;
+            
+            // 各日ごとに処理
+            for (let day = 1; day <= lastDay; day++) {
+                const date = new Date(year, month, day);
+                const dateString = formatDate(date);
+                const dayOfWeek = date.getDay();
+                
+                // 行事情報を取得
+                const eventId = monthlyEvents[dateString];
+                if (!eventId) {
+                    console.log(`${dateString}: 行事予定なし、スキップ`);
+                    continue;
+                }
+                
+                const event = eventMaster.find(e => e.id === eventId);
+                if (!event) {
+                    console.log(`${dateString}: 行事ID ${eventId} が見つかりません、スキップ`);
+                    continue;
+                }
+                
+                console.log(`${dateString}: ${event.name} のシフト作成開始`);
+                
+                // この日のシフト作成を試行
+                const dayResult = await createDayShiftAdvanced(
+                    employees, dateString, event, dayOfWeek, shiftConditions, workStats
+                );
+                
+                if (dayResult) {
+                    successCount++;
+                    console.log(`${dateString}: シフト作成成功`);
+                } else {
+                    skipCount++;
+                    console.log(`${dateString}: 条件が合わず、スキップ`);
+                }
+            }
+            
+            renderShiftTable();
+            saveCurrentShift();
+            
+            showSuccess(`シフト自動作成完了: ${successCount}日作成、${skipCount}日スキップ`);
+            
+        } catch (error) {
+            console.error('シフト自動作成エラー:', error);
+            showError('シフト自動作成に失敗しました: ' + error.message);
+        }
+    }
+    
+    // シフト条件設定の検証
+    function validateShiftConditions(conditions) {
+        return conditions && 
+               conditions.priorities && 
+               conditions.warnings && 
+               conditions.basicSettings &&
+               Array.isArray(conditions.timeSlots);
+    }
+    
+    // 勤務統計の初期化
+    function initializeWorkStats() {
+        const stats = {};
+        employees.forEach(emp => {
+            stats[emp.code] = {
+                totalHours: 0,
+                totalDays: 0,
+                consecutiveDays: 0,
+                lastWorkDate: null
+            };
+        });
+        return stats;
+    }
+    
+    // 高度な1日のシフト作成（要件に基づく）
+    async function createDayShiftAdvanced(employees, dateString, event, dayOfWeek, shiftConditions, workStats) {
+        console.log(`=== ${dateString} のシフト作成開始 ===`);
+        
+        // シフト希望データを事前に取得
+        const shiftRequests = {};
+        for (const emp of employees) {
+            try {
+                const apiRequests = await apiClient.getShiftRequests(emp.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
+                shiftRequests[emp.code] = dataConverter.requestsFromApi(apiRequests);
+            } catch (error) {
+                shiftRequests[emp.code] = dataManager.getEmployeeRequests(emp.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
             }
         }
         
-        renderShiftTable();
-        saveCurrentShift();
+        // 条件設定に基づく利用可能従業員の絞り込み
+        const availableEmployees = filterAvailableEmployees(employees, dateString, dayOfWeek, shiftRequests, shiftConditions);
         
-        showSuccess(`シフト自動作成完了: ${successCount}日作成、${skipCount}日スキップ`);
+        if (availableEmployees.length === 0) {
+            console.log('利用可能な従業員がいません');
+            return false;
+        }
+        
+        console.log(`利用可能従業員: ${availableEmployees.map(e => e.name).join(', ')}`);
+        
+        let assigned = false;
+        
+        // 各業務区分の要件を処理
+        if (event.requirements) {
+            Object.keys(event.requirements).forEach(businessTypeCode => {
+                const requirements = event.requirements[businessTypeCode];
+                
+                requirements.forEach(req => {
+                    const requiredTime = req.time;
+                    const requiredCount = req.count;
+                    
+                    console.log(`要件: ${businessTypeCode} ${requiredTime} ${requiredCount}人`);
+                    
+                    // 従業員を優先順位でソート
+                    const sortedEmployees = sortEmployeesByPriority(
+                        availableEmployees, businessTypeCode, dateString, 
+                        shiftRequests, workStats, shiftConditions
+                    );
+                    
+                    // 必要人数まで配置
+                    let assignedCount = 0;
+                    for (const emp of sortedEmployees) {
+                        if (assignedCount >= requiredCount) break;
+                        if (currentShift[emp.code][dateString]) continue; // 既に配置済み
+                        
+                        // 最終チェック
+                        if (canAssignEmployee(emp, dateString, requiredTime, shiftRequests, shiftConditions)) {
+                            currentShift[emp.code][dateString] = requiredTime;
+                            updateWorkStats(workStats, emp.code, dateString, requiredTime);
+                            assignedCount++;
+                            assigned = true;
+                            
+                            console.log(`✓ ${emp.name} を ${requiredTime} に配置`);
+                        }
+                    }
+                    
+                    console.log(`${businessTypeCode} ${requiredTime}: 必要${requiredCount}人, 配置${assignedCount}人`);
+                });
+            });
+        }
+        
+        return assigned;
+    }
+    
+    // 条件に基づく利用可能従業員の絞り込み
+    function filterAvailableEmployees(employees, dateString, dayOfWeek, shiftRequests, shiftConditions) {
+        return employees.filter(emp => {
+            // 曜日別出勤可能時間チェック
+            if (!emp.conditions.weeklySchedule || !emp.conditions.weeklySchedule[dayOfWeek]) {
+                console.log(`${emp.name}: 曜日${dayOfWeek}は出勤不可`);
+                return false;
+            }
+            
+            // 休み希望チェック（条件設定で有効な場合）
+            if (shiftConditions.priorities.respectOffRequests) {
+                const requests = shiftRequests[emp.code] || {};
+                if (requests[dateString] === 'off') {
+                    console.log(`${emp.name}: ${dateString} に休み希望`);
+                    return false;
+                }
+            }
+            
+            // 週最大労働日数チェック
+            if (emp.conditions.maxDaysPerWeek) {
+                const weekStart = getWeekStart(new Date(dateString));
+                const weekWorkDays = countWeekWorkDays(emp.code, weekStart);
+                if (weekWorkDays >= emp.conditions.maxDaysPerWeek) {
+                    console.log(`${emp.name}: 週最大労働日数 ${emp.conditions.maxDaysPerWeek} 日を超過`);
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+    }
+    
+    // 従業員を優先順位でソート
+    function sortEmployeesByPriority(employees, businessTypeCode, dateString, shiftRequests, workStats, shiftConditions) {
+        return employees.sort((a, b) => {
+            let scoreA = 0, scoreB = 0;
+            
+            // メイン業務区分優先
+            if (shiftConditions.priorities.prioritizeMainBusiness) {
+                if (hasMainBusinessType(a, businessTypeCode)) scoreA += 100;
+                if (hasMainBusinessType(b, businessTypeCode)) scoreB += 100;
+            }
+            
+            // 勤務時間均等化
+            if (shiftConditions.priorities.balanceWorkload) {
+                const hoursA = workStats[a.code]?.totalHours || 0;
+                const hoursB = workStats[b.code]?.totalHours || 0;
+                scoreA += (50 - hoursA); // 勤務時間が少ないほど高スコア
+                scoreB += (50 - hoursB);
+            }
+            
+            // 時間帯希望考慮（この段階では基本的な適合性のみ）
+            if (shiftConditions.priorities.respectTimePreferences) {
+                const requestsA = shiftRequests[a.code] || {};
+                const requestsB = shiftRequests[b.code] || {};
+                
+                if (requestsA[dateString] && requestsA[dateString] !== 'off') scoreA += 20;
+                if (requestsB[dateString] && requestsB[dateString] !== 'off') scoreB += 20;
+            }
+            
+            return scoreB - scoreA; // 降順
+        });
+    }
+    
+    // 従業員を特定の時間帯に配置可能かチェック
+    function canAssignEmployee(employee, dateString, requiredTime, shiftRequests, shiftConditions) {
+        const date = new Date(dateString);
+        const dayOfWeek = date.getDay();
+        
+        // 曜日別出勤可能時間チェック
+        if (!employee.conditions.weeklySchedule || !employee.conditions.weeklySchedule[dayOfWeek]) {
+            return false;
+        }
+        
+        const daySchedule = employee.conditions.weeklySchedule[dayOfWeek];
+        
+        // 「終日」設定チェック
+        if (daySchedule.includes('終日')) {
+            return true;
+        }
+        
+        // 固定時間帯チェック
+        if (daySchedule.includes(requiredTime)) {
+            return true;
+        }
+        
+        // 時間帯希望チェック（条件設定で有効な場合）
+        if (shiftConditions.priorities.respectTimePreferences) {
+            const requests = shiftRequests[employee.code] || {};
+            const employeePreference = requests[dateString];
+            
+            if (employeePreference && employeePreference !== 'off' && employeePreference !== '') {
+                if (isTimeOverlap(employeePreference, requiredTime)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    // 勤務統計を更新
+    function updateWorkStats(workStats, employeeCode, dateString, shift) {
+        if (!workStats[employeeCode]) return;
+        
+        const hours = calculateShiftHours(shift);
+        workStats[employeeCode].totalHours += hours;
+        workStats[employeeCode].totalDays += 1;
+        workStats[employeeCode].lastWorkDate = dateString;
+        
+        // 連続勤務日数の更新ロジックは簡略化（必要に応じて拡張）
+    }
+    
+    // 週の開始日を取得（月曜日）
+    function getWeekStart(date) {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // 月曜日を週開始とする
+        return new Date(d.setDate(diff));
+    }
+    
+    // 週の勤務日数をカウント
+    function countWeekWorkDays(employeeCode, weekStart) {
+        let count = 0;
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(weekStart);
+            date.setDate(weekStart.getDate() + i);
+            const dateString = formatDate(date);
+            
+            if (currentShift[employeeCode] && currentShift[employeeCode][dateString]) {
+                count++;
+            }
+        }
+        return count;
     }
     
     // 1日のシフト作成（メイン業務優先ロジック）
