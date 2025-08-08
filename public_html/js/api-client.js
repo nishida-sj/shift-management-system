@@ -375,13 +375,33 @@ class DataConverter {
     // 休み希望の変換
     static requestsToApi(localRequests) {
         const apiRequests = {};
-        Object.keys(localRequests).forEach(day => {
-            const request = localRequests[day];
-            apiRequests[day] = {
-                isOff: request.isOff || 0,
-                preferredStartTime: request.preferredStartTime || null,
-                preferredEndTime: request.preferredEndTime || null
-            };
+        Object.keys(localRequests).forEach(dateString => {
+            const request = localRequests[dateString];
+            const date = new Date(dateString);
+            const day = date.getDate();
+            
+            if (request === 'off') {
+                apiRequests[day] = {
+                    isOff: 1,
+                    preferredStartTime: null,
+                    preferredEndTime: null
+                };
+            } else if (request && request.includes('-')) {
+                // 時間帯形式 "09:00-17:00"
+                const [startTime, endTime] = request.split('-');
+                apiRequests[day] = {
+                    isOff: 0,
+                    preferredStartTime: startTime + ':00', // HH:MM:SS形式にする
+                    preferredEndTime: endTime + ':00'
+                };
+            } else if (request === 'custom') {
+                // カスタム時間帯は別途処理される
+                apiRequests[day] = {
+                    isOff: 0,
+                    preferredStartTime: null,
+                    preferredEndTime: null
+                };
+            }
         });
         return apiRequests;
     }
@@ -389,11 +409,16 @@ class DataConverter {
     static requestsFromApi(apiRequests) {
         const localRequests = {};
         apiRequests.forEach(request => {
-            localRequests[request.day] = {
-                isOff: request.is_off_requested,
-                preferredStartTime: request.preferred_time_start,
-                preferredEndTime: request.preferred_time_end
-            };
+            const dateString = `${request.year}-${String(request.month).padStart(2, '0')}-${String(request.day).padStart(2, '0')}`;
+            
+            if (request.is_off_requested) {
+                localRequests[dateString] = 'off';
+            } else if (request.preferred_time_start && request.preferred_time_end) {
+                // 時間を HH:MM-HH:MM 形式に変換
+                const startTime = request.preferred_time_start.substring(0, 5);
+                const endTime = request.preferred_time_end.substring(0, 5);
+                localRequests[dateString] = `${startTime}-${endTime}`;
+            }
         });
         return localRequests;
     }

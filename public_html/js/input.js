@@ -6,17 +6,20 @@ $(document).ready(function() {
     checkLogin();
     
     // 初期表示
-    renderCalendar();
+    async function initialize() {
+        await renderCalendar();
+    }
+    initialize();
     
     // 月移動ボタン
-    $('#prev-month').on('click', function() {
+    $('#prev-month').on('click', async function() {
         currentDate.setMonth(currentDate.getMonth() - 1);
-        renderCalendar();
+        await renderCalendar();
     });
     
-    $('#next-month').on('click', function() {
+    $('#next-month').on('click', async function() {
         currentDate.setMonth(currentDate.getMonth() + 1);
-        renderCalendar();
+        await renderCalendar();
     });
     
     // 保存ボタン
@@ -129,7 +132,7 @@ $(document).ready(function() {
         initializeTimePickers();
         
         // 従業員の固定条件を反映（保存済みデータも同時に復元）
-        loadEmployeeConditions();
+        await loadEmployeeConditions();
     }
     
     // timepicker初期化
@@ -192,28 +195,6 @@ $(document).ready(function() {
         return `${year}-${month}-${day}`;
     }
     
-    // 保存済み希望の読み込み
-    async function loadSavedPreferences() {
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        
-        try {
-            const apiRequests = await apiClient.getShiftRequests(currentUser.username, year, month);
-            const preferences = dataConverter.requestsFromApi(apiRequests);
-        
-            $('.shift-select').each(function() {
-                const date = $(this).data('date');
-                if (preferences[date]) {
-                    $(this).val(preferences[date]);
-                } else {
-                    $(this).val(''); // 明示的に空に設定
-                }
-            });
-        } catch (error) {
-            console.error('シフト希望読み込みエラー:', error);
-            // エラーが発生しても処理は続行（新規入力として扱う）
-        }
-    }
     
     // シフト希望の保存
     async function saveShiftPreferences() {
@@ -266,7 +247,9 @@ $(document).ready(function() {
         const month = currentDate.getMonth() + 1;
         
         try {
-            await apiClient.saveShiftRequests(currentUser.username, year, month, preferences);
+            // データをAPI形式に変換
+            const apiRequests = dataConverter.requestsToApi(preferences);
+            await apiClient.saveShiftRequests(currentUser.username, year, month, apiRequests);
             showSuccess('シフト希望を保存しました。');
         } catch (error) {
             console.error('シフト希望保存エラー:', error);
@@ -308,7 +291,8 @@ $(document).ready(function() {
         const month = currentDate.getMonth() + 1;
         
         try {
-            await apiClient.saveShiftRequests(currentUser.username, year, month, {});
+            const emptyApiRequests = dataConverter.requestsToApi({});
+            await apiClient.saveShiftRequests(currentUser.username, year, month, emptyApiRequests);
             showSuccess('全ての入力をクリアしました。');
         } catch (error) {
             console.error('シフト希望クリアエラー:', error);
@@ -333,13 +317,25 @@ $(document).ready(function() {
     }
     
     // 従業員の固定条件を反映
-    function loadEmployeeConditions() {
+    async function loadEmployeeConditions() {
         const employee = dataManager.getEmployee(currentUser.username);
         if (!employee) return;
         
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
-        const preferences = dataManager.getEmployeeRequests(currentUser.username, year, month);
+        
+        // API経由で保存済みのシフト希望を取得
+        let preferences = {};
+        try {
+            const apiRequests = await apiClient.getShiftRequests(currentUser.username, year, month);
+            preferences = dataConverter.requestsFromApi(apiRequests);
+            console.log('シフト希望入力: API経由で読み込んだデータ:', preferences);
+        } catch (error) {
+            console.error('シフト希望読み込みエラー:', error);
+            // エラー時はローカルストレージから読み込み
+            preferences = dataManager.getEmployeeRequests(currentUser.username, year, month);
+            console.log('シフト希望入力: localStorage経由で読み込んだデータ:', preferences);
+        }
         
         $('.shift-select').each(function() {
             const date = $(this).data('date');
@@ -388,10 +384,14 @@ $(document).ready(function() {
                 selectElement.html(options);
                 
                 // 保存済みの値を復元
+                console.log(`日付: ${date}, 保存済み値: "${savedValue}", 曜日設定:`, daySchedule);
+                
                 if (savedValue === 'off') {
                     selectElement.val('off');
-                } else if (savedValue && daySchedule.includes(savedValue)) {
+                } else if (savedValue && Array.from(availableSlots).includes(savedValue)) {
+                    // 登録済み時間帯の場合
                     selectElement.val(savedValue);
+                    console.log(`✓ 登録済み時間帯として復元: ${savedValue}`);
                 } else if (savedValue && validateTimeFormat(savedValue)) {
                     // カスタム時間帯の場合
                     selectElement.val('custom');
@@ -401,19 +401,11 @@ $(document).ready(function() {
                     const [startTime, endTime] = savedValue.split('-');
                     customContainer.find('.start-time').val(startTime);
                     customContainer.find('.end-time').val(endTime);
+                    console.log(`✓ カスタム時間帯として復元: ${startTime}-${endTime}`);
                 } else if (savedValue) {
-                    // 「終日」設定の従業員で保存済み時間帯がある場合
-                    if (daySchedule.includes('終日')) {
-                        selectElement.val('custom');
-                        customContainer.show();
-                        
-                        // 時間帯を分解してtimepickerに設定
-                        if (validateTimeFormat(savedValue)) {
-                            const [startTime, endTime] = savedValue.split('-');
-                            customContainer.find('.start-time').val(startTime);
-                            customContainer.find('.end-time').val(endTime);
-                        }
-                    }
+                    console.log(`⚠️ 認識できない保存値: "${savedValue}"`);
+                    // 解釈できない値の場合は空にする
+                    selectElement.val('');
                 }
             }
         });
