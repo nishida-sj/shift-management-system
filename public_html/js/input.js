@@ -349,8 +349,18 @@ $(document).ready(function() {
     
     // 従業員の固定条件を反映
     async function loadEmployeeConditions() {
+        console.log('loadEmployeeConditions: 関数開始');
+        console.log('currentUser:', currentUser);
+        
         const employee = dataManager.getEmployee(currentUser.username);
-        if (!employee) return;
+        console.log('取得した従業員データ:', employee);
+        
+        if (!employee) {
+            console.log('⚠️ 従業員データが見つかりません - 早期return');
+            return;
+        }
+        
+        console.log('✓ 従業員データ確認完了、API取得処理に進みます');
         
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
