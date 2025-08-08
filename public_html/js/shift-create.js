@@ -252,8 +252,8 @@ $(document).ready(function() {
                 const shift = currentShift[employee.code] ? currentShift[employee.code][dateString] : '';
                 const shiftDisplay = formatShiftDisplay(shift);
                 
-                // 条件違反チェック
-                const isViolation = checkShiftViolation(employee, dateString, shift);
+                // 条件違反チェック（同期版を使用）
+                const isViolation = checkShiftViolationSync(employee, dateString, shift);
                 const violationStyle = isViolation ? 'color: red; font-weight: bold;' : '';
                 
                 // セル背景色を取得
@@ -297,7 +297,7 @@ $(document).ready(function() {
     }
     
     // シフト条件違反チェック
-    function checkShiftViolation(employee, dateString, shift) {
+    async function checkShiftViolation(employee, dateString, shift) {
         if (!shift) return false;
         
         const date = new Date(dateString);
@@ -340,6 +340,42 @@ $(document).ready(function() {
         }
         
         // TODO: 週の勤務日数制限、1日の勤務時間制限もチェック
+        
+        return true; // 条件に合わない
+    }
+    
+    // シフト条件違反チェック（同期版 - 表描画用）
+    function checkShiftViolationSync(employee, dateString, shift) {
+        if (!shift) return false;
+        
+        const date = new Date(dateString);
+        const dayOfWeek = date.getDay();
+        
+        // 曜日別出勤可能時間チェック
+        if (!employee.conditions.weeklySchedule || !employee.conditions.weeklySchedule[dayOfWeek]) {
+            return true; // その曜日は出勤不可
+        }
+        
+        // 「終日」が設定されている場合はどの時間帯でもOK
+        if (employee.conditions.weeklySchedule[dayOfWeek].includes('終日')) {
+            return false;
+        }
+        
+        // 固定時間帯チェック
+        if (employee.conditions.weeklySchedule[dayOfWeek].includes(shift)) {
+            return false;
+        }
+        
+        // 従業員の時間帯希望チェック（localStorageのみ - 同期処理）
+        const requests = dataManager.getEmployeeRequests(employee.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
+        const employeePreference = requests[dateString];
+        
+        if (employeePreference && employeePreference !== 'off' && employeePreference !== '') {
+            // カスタム時間帯の場合、重複チェック
+            if (isTimeOverlap(employeePreference, shift)) {
+                return false; // 希望時間帯と重複していれば問題なし
+            }
+        }
         
         return true; // 条件に合わない
     }
@@ -629,7 +665,7 @@ $(document).ready(function() {
     
     // 編集時の警告チェック
     function checkEditWarning() {
-        $('#edit-shift-time').on('change', function() {
+        $('#edit-shift-time').on('change', async function() {
             const newShift = $(this).val();
             if (!newShift) {
                 $('#warning-message').hide();
@@ -637,7 +673,7 @@ $(document).ready(function() {
             }
             
             const employee = employees.find(emp => emp.code === editingCell.employeeCode);
-            const isViolation = checkShiftViolation(employee, editingCell.date, newShift);
+            const isViolation = await checkShiftViolation(employee, editingCell.date, newShift);
             
             if (isViolation) {
                 $('#warning-message').text('この設定は従業員の条件に合いません。保存しても赤字で表示されます。').show();
