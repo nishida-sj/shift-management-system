@@ -216,6 +216,9 @@ function handlePost($db) {
 }
 
 function saveShiftRequests($db, $input) {
+    error_log('=== saveShiftRequests開始 ===');
+    error_log('Input data: ' . json_encode($input));
+    
     validateRequired($input, ['employee_code', 'year', 'month', 'requests']);
     validateDate($input['year'], $input['month']);
     
@@ -223,17 +226,22 @@ function saveShiftRequests($db, $input) {
         $db->beginTransaction();
         
         // 既存データ削除
+        error_log('既存データ削除開始: ' . $input['employee_code'] . ', ' . $input['year'] . '-' . $input['month']);
         $stmt = $db->prepare("DELETE FROM shift_requests WHERE employee_code = :employee_code AND year = :year AND month = :month");
         $stmt->execute(['employee_code' => $input['employee_code'], 'year' => $input['year'], 'month' => $input['month']]);
+        error_log('削除された行数: ' . $stmt->rowCount());
         
         // 新データ挿入
         $sql = "INSERT INTO shift_requests (employee_code, year, month, day, is_off_requested, preferred_time_start, preferred_time_end) 
                 VALUES (:employee_code, :year, :month, :day, :is_off_requested, :preferred_time_start, :preferred_time_end)";
         $stmt = $db->prepare($sql);
         
+        $insertCount = 0;
         foreach ($input['requests'] as $day => $request) {
+            error_log('処理中のリクエスト - Day: ' . $day . ', Request: ' . json_encode($request));
+            
             if (!empty($request)) {
-                $stmt->execute([
+                $params = [
                     'employee_code' => $input['employee_code'],
                     'year' => $input['year'],
                     'month' => $input['month'],
@@ -241,17 +249,31 @@ function saveShiftRequests($db, $input) {
                     'is_off_requested' => $request['isOff'] ?? 0,
                     'preferred_time_start' => $request['preferredStartTime'] ?? null,
                     'preferred_time_end' => $request['preferredEndTime'] ?? null
-                ]);
+                ];
+                
+                error_log('挿入パラメータ: ' . json_encode($params));
+                $stmt->execute($params);
+                $insertCount++;
             }
         }
         
+        error_log('挿入された行数: ' . $insertCount);
         $db->commit();
+        error_log('トランザクション完了');
+        
         sendJsonResponse(['message' => '休み希望を保存しました']);
         
     } catch (PDOException $e) {
         $db->rollBack();
-        error_log('Shift requests save error: ' . $e->getMessage());
+        error_log('PDOException: ' . $e->getMessage());
+        error_log('PDOException Code: ' . $e->getCode());
+        error_log('Stack trace: ' . $e->getTraceAsString());
         sendErrorResponse('休み希望の保存に失敗しました', 500);
+    } catch (Exception $e) {
+        $db->rollBack();
+        error_log('Exception: ' . $e->getMessage());
+        error_log('Stack trace: ' . $e->getTraceAsString());
+        sendErrorResponse('予期しないエラーが発生しました', 500);
     }
 }
 

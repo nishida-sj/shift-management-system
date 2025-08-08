@@ -207,9 +207,13 @@ $(document).ready(function() {
             const value = $(this).val();
             const customContainer = $(this).siblings('.custom-time-container');
             
+            console.log(`データ収集: ${date} => "${value}"`);
+            
             if (value === 'custom') {
                 const startTime = customContainer.find('.start-time').val();
                 const endTime = customContainer.find('.end-time').val();
+                
+                console.log(`カスタム時間帯: ${date} => 開始:${startTime}, 終了:${endTime}`);
                 
                 if (startTime && endTime) {
                     // 時間帯の妥当性チェック
@@ -222,14 +226,20 @@ $(document).ready(function() {
                     const customTime = `${startTime}-${endTime}`;
                     preferences[date] = customTime;
                     hasData = true;
+                    console.log(`✓ カスタム時間帯保存: ${date} => "${customTime}"`);
                 } else if (startTime || endTime) {
                     showError(`${date}: 開始時間と終了時間の両方を入力してください。`);
                     hasError = true;
                     return false;
+                } else {
+                    console.log(`⚠️ カスタム選択だが時間帯未入力: ${date}`);
                 }
             } else if (value) {
                 preferences[date] = value;
                 hasData = true;
+                console.log(`✓ 固定値保存: ${date} => "${value}"`);
+            } else {
+                console.log(`- 選択無し: ${date}`);
             }
         });
         
@@ -259,7 +269,18 @@ $(document).ready(function() {
             showSuccess('シフト希望を保存しました。');
         } catch (error) {
             console.error('シフト希望保存エラー:', error);
-            showError('シフト希望の保存に失敗しました。');
+            console.error('エラー詳細:', {
+                message: error.message,
+                status: error.status,
+                responseText: error.responseText,
+                stack: error.stack
+            });
+            
+            let errorMessage = 'シフト希望の保存に失敗しました。';
+            if (error.message) {
+                errorMessage += ' エラー: ' + error.message;
+            }
+            showError(errorMessage);
         }
     }
     
