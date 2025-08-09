@@ -237,6 +237,7 @@ class DataConverter {
             name: localEmployee.name,
             business_type: businessType,
             password: localEmployee.password,
+            shift_priority: localEmployee.shiftPriority ? 1 : 0,
             available_days: availableDays,
             preferred_time_start: this.extractFirstTimeStart(localEmployee.conditions),
             preferred_time_end: this.extractFirstTimeEnd(localEmployee.conditions),
@@ -311,6 +312,7 @@ class DataConverter {
                 isMain: true
             }],
             password: apiEmployee.password,
+            shiftPriority: apiEmployee.shift_priority === 1,
             conditions: {
                 weeklySchedule,
                 maxHoursPerDay: apiEmployee.work_limit_per_day || 8,

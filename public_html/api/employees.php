@@ -101,9 +101,9 @@ function handlePost($db) {
     }
     
     try {
-        $sql = "INSERT INTO employees (employee_code, name, business_type, password, available_days, 
+        $sql = "INSERT INTO employees (employee_code, name, business_type, password, shift_priority, available_days, 
                 preferred_time_start, preferred_time_end, weekly_schedule, work_limit_per_day, work_limit_per_month) 
-                VALUES (:employee_code, :name, :business_type, :password, :available_days, 
+                VALUES (:employee_code, :name, :business_type, :password, :shift_priority, :available_days, 
                 :preferred_time_start, :preferred_time_end, :weekly_schedule, :work_limit_per_day, :work_limit_per_month)";
         
         $stmt = $db->prepare($sql);
@@ -112,6 +112,7 @@ function handlePost($db) {
             'name' => $input['name'],
             'business_type' => $input['business_type'],
             'password' => $input['password'], // 本番環境ではハッシュ化推奨
+            'shift_priority' => $input['shift_priority'] ?? 0,
             'available_days' => isset($input['available_days']) ? json_encode($input['available_days'], JSON_UNESCAPED_UNICODE) : null,
             'preferred_time_start' => $input['preferred_time_start'] ?? null,
             'preferred_time_end' => $input['preferred_time_end'] ?? null,
@@ -151,7 +152,7 @@ function handlePut($db) {
     }
     
     try {
-        $sql = "UPDATE employees SET name = :name, business_type = :business_type, 
+        $sql = "UPDATE employees SET name = :name, business_type = :business_type, shift_priority = :shift_priority,
                 available_days = :available_days, preferred_time_start = :preferred_time_start, 
                 preferred_time_end = :preferred_time_end, weekly_schedule = :weekly_schedule,
                 work_limit_per_day = :work_limit_per_day, work_limit_per_month = :work_limit_per_month, 
@@ -159,7 +160,7 @@ function handlePut($db) {
         
         // パスワード更新がある場合
         if (isset($input['password']) && !empty($input['password'])) {
-            $sql = "UPDATE employees SET name = :name, business_type = :business_type, password = :password,
+            $sql = "UPDATE employees SET name = :name, business_type = :business_type, password = :password, shift_priority = :shift_priority,
                     available_days = :available_days, preferred_time_start = :preferred_time_start, 
                     preferred_time_end = :preferred_time_end, weekly_schedule = :weekly_schedule,
                     work_limit_per_day = :work_limit_per_day, work_limit_per_month = :work_limit_per_month, 
@@ -171,6 +172,7 @@ function handlePut($db) {
             'employee_code' => $input['employee_code'],
             'name' => $input['name'],
             'business_type' => $input['business_type'],
+            'shift_priority' => $input['shift_priority'] ?? 0,
             'available_days' => isset($input['available_days']) ? json_encode($input['available_days'], JSON_UNESCAPED_UNICODE) : null,
             'preferred_time_start' => $input['preferred_time_start'] ?? null,
             'preferred_time_end' => $input['preferred_time_end'] ?? null,

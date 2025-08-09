@@ -768,18 +768,24 @@ $(document).ready(function() {
         return employees.sort((a, b) => {
             let scoreA = 0, scoreB = 0;
             
+            // シフト優先区分を最優先で処理（勤務時間均等化より優先）
+            if (a.shiftPriority) scoreA += 1000;
+            if (b.shiftPriority) scoreB += 1000;
+            
             // メイン業務区分優先
             if (shiftConditions.priorities.prioritizeMainBusiness) {
                 if (hasMainBusinessType(a, businessTypeCode)) scoreA += 100;
                 if (hasMainBusinessType(b, businessTypeCode)) scoreB += 100;
             }
             
-            // 勤務時間均等化
+            // 勤務時間均等化（シフト優先区分でない従業員のみに適用）
             if (shiftConditions.priorities.balanceWorkload) {
                 const hoursA = workStats[a.code]?.totalHours || 0;
                 const hoursB = workStats[b.code]?.totalHours || 0;
-                scoreA += (50 - hoursA); // 勤務時間が少ないほど高スコア
-                scoreB += (50 - hoursB);
+                
+                // シフト優先区分の従業員は勤務時間均等化の影響を受けない
+                if (!a.shiftPriority) scoreA += (50 - hoursA);
+                if (!b.shiftPriority) scoreB += (50 - hoursB);
             }
             
             // 時間帯希望考慮（この段階では基本的な適合性のみ）
@@ -790,6 +796,8 @@ $(document).ready(function() {
                 if (requestsA[dateString] && requestsA[dateString] !== 'off') scoreA += 20;
                 if (requestsB[dateString] && requestsB[dateString] !== 'off') scoreB += 20;
             }
+            
+            console.log(`優先順位計算: ${a.name}(${scoreA}) vs ${b.name}(${scoreB}) [優先区分: ${a.shiftPriority}/${b.shiftPriority}]`);
             
             return scoreB - scoreA; // 降順
         });

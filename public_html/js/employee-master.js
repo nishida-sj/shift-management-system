@@ -71,6 +71,7 @@ $(document).ready(function() {
                             isMain: true
                         }],
                         password: emp.password,
+                        shiftPriority: emp.shift_priority === 1,
                         conditions: {
                             weeklySchedule: {},
                             maxHoursPerDay: emp.work_limit_per_day || 8,
@@ -91,18 +92,22 @@ $(document).ready(function() {
     // 従業員一覧を描画
     function renderEmployeeList() {
         let html = '<table class="table"><thead><tr>';
-        html += '<th>従業員コード</th><th>氏名</th><th>業務区分</th><th>出勤可能曜日・時間</th><th>操作</th>';
+        html += '<th>従業員コード</th><th>氏名</th><th>業務区分</th><th>シフト優先</th><th>出勤可能曜日・時間</th><th>操作</th>';
         html += '</tr></thead><tbody>';
         
         currentEmployees.forEach((employee, index) => {
             const businessTypeText = formatBusinessTypes(employee.businessTypes);
             const weeklyScheduleText = formatWeeklySchedule(employee.conditions.weeklySchedule);
+            const shiftPriorityText = employee.shiftPriority ? 
+                '<span style="color: #e74c3c; font-weight: bold;">優先</span>' : 
+                '<span style="color: #7f8c8d;">通常</span>';
             
             html += `
                 <tr>
                     <td>${employee.code}</td>
                     <td>${employee.name}</td>
                     <td>${businessTypeText}</td>
+                    <td>${shiftPriorityText}</td>
                     <td>${weeklyScheduleText}</td>
                     <td>
                         <button class="btn btn-primary edit-btn" data-index="${index}" style="margin-right: 5px;">編集</button>
@@ -195,6 +200,7 @@ $(document).ready(function() {
         $('#emp-code').val('').prop('readonly', false);
         $('#emp-name').val('');
         $('#emp-password').val('');
+        $('#shift-priority').prop('checked', false);
         $('#max-hours-per-day').val('8');
         $('#max-days-per-week').val('5');
         
@@ -221,6 +227,7 @@ $(document).ready(function() {
             $('#emp-code').val(fullEmployee.code).prop('readonly', true);
             $('#emp-name').val(fullEmployee.name);
             $('#emp-password').val(detailEmployee.password || ''); // APIから直接取得
+            $('#shift-priority').prop('checked', fullEmployee.shiftPriority || false);
             $('#max-hours-per-day').val(fullEmployee.conditions.maxHoursPerDay || 8);
             $('#max-days-per-week').val(fullEmployee.conditions.maxDaysPerWeek || 5);
             
@@ -246,6 +253,7 @@ $(document).ready(function() {
             $('#emp-code').val(employee.code).prop('readonly', true);
             $('#emp-name').val(employee.name);
             $('#emp-password').val(''); // パスワードは空に
+            $('#shift-priority').prop('checked', employee.shiftPriority || false);
             $('#max-hours-per-day').val(employee.conditions.maxHoursPerDay || 8);
             $('#max-days-per-week').val(employee.conditions.maxDaysPerWeek || 5);
             
@@ -462,6 +470,7 @@ $(document).ready(function() {
         const code = $('#emp-code').val().trim();
         const name = $('#emp-name').val().trim();
         const password = $('#emp-password').val().trim();
+        const shiftPriority = $('#shift-priority').is(':checked');
         const maxHoursPerDay = parseInt($('#max-hours-per-day').val()) || 8;
         const maxDaysPerWeek = parseInt($('#max-days-per-week').val()) || 5;
         
@@ -518,6 +527,7 @@ $(document).ready(function() {
             name: name,
             businessTypes: employeeBusinessTypes,
             password: password,
+            shiftPriority: shiftPriority,
             conditions: {
                 weeklySchedule: weeklySchedule,
                 maxHoursPerDay: maxHoursPerDay,
