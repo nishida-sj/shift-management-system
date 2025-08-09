@@ -110,12 +110,23 @@ class ApiClient {
 
     // 休み希望
     async getShiftRequests(employee_code, year, month) {
-        return this.get('/shifts.php', {
-            type: 'requests',
-            employee_code,
-            year,
-            month
-        });
+        // 新しいAPIを使用（管理者用も共通化）
+        try {
+            return await this.get('/shift-requests.php', {
+                employee_code,
+                year,
+                month
+            });
+        } catch (error) {
+            // フォールバック: 既存のAPIを使用
+            console.warn('新APIでシフト希望取得失敗、既存APIを使用:', error);
+            return this.get('/shifts.php', {
+                type: 'requests',
+                employee_code,
+                year,
+                month
+            });
+        }
     }
 
     async saveShiftRequests(employee_code, year, month, requests) {
@@ -125,6 +136,28 @@ class ApiClient {
             year,
             month,
             requests
+        });
+    }
+
+    // 管理者用シフト希望メソッド
+    async saveShiftRequest(employee_code, year, month, day, is_off_requested, preferred_time_start = null, preferred_time_end = null) {
+        return this.post('/shift-requests.php', {
+            employee_code,
+            year,
+            month,
+            day,
+            is_off_requested,
+            preferred_time_start,
+            preferred_time_end
+        });
+    }
+
+    async deleteShiftRequest(employee_code, year, month, day) {
+        return this.delete('/shift-requests.php', {
+            employee_code,
+            year,
+            month,
+            day
         });
     }
 
