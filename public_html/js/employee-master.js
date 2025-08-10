@@ -31,13 +31,28 @@ $(document).ready(function() {
     
     // 業務区分削除ボタン（動的要素用）
     $(document).on('click', '.remove-business-type-btn', function() {
-        $(this).closest('.business-type-row').remove();
+        const row = $(this).closest('.business-type-row');
+        const businessTypeRows = $('#business-types-container .business-type-row');
+        
+        // 最低1つは業務区分が必要
+        if (businessTypeRows.length <= 1) {
+            showError('業務区分は最低1つ必要です。');
+            return;
+        }
+        
+        row.remove();
         updateMainBusinessTypeOptions();
+        validateBusinessTypeSelection();
     });
     
     // メイン業務区分変更時の処理
     $(document).on('change', '.main-business-type', function() {
         updateMainBusinessTypeOptions();
+    });
+    
+    // 業務区分選択変更時の処理
+    $(document).on('change', '.business-type-select', function() {
+        validateBusinessTypeSelection();
     });
     
     // 曜日時間追加ボタン（動的要素用）
@@ -296,26 +311,40 @@ $(document).ready(function() {
             businessTypeOptions += `<option value="${bt.code}" ${selected}>${bt.name}</option>`;
         });
         
+        const rowId = 'bt-row-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        
         const html = `
-            <div class="business-type-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+            <div class="business-type-row" data-row-id="${rowId}" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f9f9f9;">
                 <div style="flex: 2;">
-                    <select class="form-control business-type-select">
+                    <label style="font-weight: bold; color: #2c3e50; margin-bottom: 5px; display: block;">業務区分</label>
+                    <select class="form-control business-type-select" required>
                         ${businessTypeOptions}
                     </select>
                 </div>
-                <div style="flex: 1;">
-                    <label>
-                        <input type="radio" name="main-business-type" class="main-business-type" ${isMain ? 'checked' : ''}>
-                        メイン
-                    </label>
+                <div style="flex: 1; text-align: center;">
+                    <label style="font-weight: bold; color: #2c3e50; margin-bottom: 5px; display: block;">区分</label>
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                        <label style="font-size: 14px; cursor: pointer;">
+                            <input type="radio" name="main-business-type" class="main-business-type" value="${rowId}" ${isMain ? 'checked' : ''}>
+                            <span style="color: #e74c3c; font-weight: bold;">メイン</span>
+                        </label>
+                        <span style="color: #7f8c8d; font-size: 12px;">${isMain ? '' : 'サブ'}</span>
+                    </div>
                 </div>
-                <div>
-                    <button type="button" class="btn btn-secondary remove-business-type-btn">削除</button>
+                <div style="text-align: center;">
+                    <button type="button" class="btn btn-secondary remove-business-type-btn" style="font-size: 12px;">
+                        削除
+                    </button>
                 </div>
             </div>
         `;
         $('#business-types-container').append(html);
         updateMainBusinessTypeOptions();
+        
+        // 新しく追加された行にイベントリスナーを設定
+        $(`[data-row-id="${rowId}"] .business-type-select`).on('change', function() {
+            validateBusinessTypeSelection();
+        });
     }
     
     // メイン業務区分オプションを更新
@@ -329,7 +358,53 @@ $(document).ready(function() {
                 // メインが選択されていない場合は最初の行をメインにする
                 businessTypeRows.first().find('.main-business-type').prop('checked', true);
             }
+            
+            // サブ表示を更新
+            businessTypeRows.each(function() {
+                const isMainChecked = $(this).find('.main-business-type').is(':checked');
+                const subText = $(this).find('.main-business-type').parent().parent().find('span:last');
+                subText.text(isMainChecked ? '' : 'サブ');
+            });
         }
+    }
+    
+    // 業務区分選択の妥当性チェック
+    function validateBusinessTypeSelection() {
+        const selectedBusinessTypes = [];
+        const duplicateRows = [];
+        
+        $('.business-type-row').each(function() {
+            const businessTypeCode = $(this).find('.business-type-select').val();
+            const rowElement = $(this);
+            
+            if (businessTypeCode) {
+                if (selectedBusinessTypes.includes(businessTypeCode)) {
+                    duplicateRows.push(rowElement);
+                } else {
+                    selectedBusinessTypes.push(businessTypeCode);
+                }
+            }
+        });
+        
+        // 重複の視覚的表示
+        $('.business-type-row').removeClass('duplicate-business-type');
+        duplicateRows.forEach(row => {
+            row.addClass('duplicate-business-type');
+            row.css({
+                'border-color': '#e74c3c',
+                'background-color': '#fdf2f2'
+            });
+        });
+        
+        // 重複がない場合は通常の表示に戻す
+        if (duplicateRows.length === 0) {
+            $('.business-type-row').css({
+                'border-color': '#ddd',
+                'background-color': '#f9f9f9'
+            });
+        }
+        
+        return duplicateRows.length === 0;
     }
     
     // 週間スケジュールを初期化
@@ -482,17 +557,31 @@ $(document).ready(function() {
         
         // 業務区分を取得
         const employeeBusinessTypes = [];
+        const selectedBusinessTypeCodes = [];
+        
         $('.business-type-row').each(function() {
             const businessTypeCode = $(this).find('.business-type-select').val();
             const isMain = $(this).find('.main-business-type').is(':checked');
             
             if (businessTypeCode) {
+                if (selectedBusinessTypeCodes.includes(businessTypeCode)) {
+                    showError(`業務区分「${businessTypeCode}」が重複しています。同じ業務区分を複数選択することはできません。`);
+                    return false; // eachループを停止
+                }
+                
+                selectedBusinessTypeCodes.push(businessTypeCode);
                 employeeBusinessTypes.push({
                     code: businessTypeCode,
                     isMain: isMain
                 });
             }
         });
+        
+        // 重複チェックでエラーがあった場合は処理を停止
+        if (!validateBusinessTypeSelection()) {
+            showError('業務区分に重複があります。同じ業務区分を複数選択することはできません。');
+            return;
+        }
         
         if (employeeBusinessTypes.length === 0) {
             showError('業務区分を1つ以上選択してください。');
