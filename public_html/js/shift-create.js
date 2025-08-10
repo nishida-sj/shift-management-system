@@ -642,14 +642,33 @@ $(document).ready(function() {
         
         let assigned = false;
         
-        // 各業務区分の要件を処理
+        // 各業務区分の要件を構築順で処理
         console.log(`=== ${dateString} 要件処理開始 ===`);
         console.log(`行事要件:`, JSON.stringify(event.requirements, null, 2));
         
         if (event.requirements) {
-            Object.keys(event.requirements).forEach(businessTypeCode => {
+            // 業務区分マスタを取得
+            const businessTypes = dataManager.getBusinessTypes();
+            
+            // 業務区分を構築順でソート
+            const sortedBusinessTypeCodes = Object.keys(event.requirements).sort((a, b) => {
+                const btA = businessTypes.find(bt => bt.code === a);
+                const btB = businessTypes.find(bt => bt.code === b);
+                
+                const orderA = btA?.buildOrder || 999;
+                const orderB = btB?.buildOrder || 999;
+                
+                return orderA - orderB;
+            });
+            
+            console.log(`業務区分処理順序:`, sortedBusinessTypeCodes);
+            
+            sortedBusinessTypeCodes.forEach(businessTypeCode => {
                 const requirements = event.requirements[businessTypeCode];
-                console.log(`\n--- 業務区分: ${businessTypeCode} ---`);
+                const businessType = businessTypes.find(bt => bt.code === businessTypeCode);
+                const buildOrder = businessType?.buildOrder || 999;
+                
+                console.log(`\n--- 業務区分: ${businessType?.name || businessTypeCode} (構築順: ${buildOrder}) ---`);
                 
                 requirements.forEach((req, reqIndex) => {
                     const requiredTime = req.time;
@@ -657,55 +676,86 @@ $(document).ready(function() {
                     
                     console.log(`📋 要件 ${reqIndex + 1}: ${businessTypeCode} ${requiredTime} ${requiredCount}人必要`);
                     
-                    // この要件に該当する従業員をフィルタ
-                    const suitableEmployees = availableEmployees.filter(emp => {
-                        // 業務区分チェック
-                        const hasBusinessType = emp.businessTypes && emp.businessTypes.some(bt => bt.code === businessTypeCode);
-                        if (!hasBusinessType) {
-                            console.log(`  ${emp.name}: 業務区分 ${businessTypeCode} に該当しない`);
-                            return false;
-                        }
-                        
+                    // Step1: メイン業務として該当する従業員を優先取得
+                    const mainEmployees = availableEmployees.filter(emp => {
                         // 既に配置済みでないかチェック
                         if (currentShift[emp.code][dateString]) {
-                            console.log(`  ${emp.name}: 既に配置済み (${currentShift[emp.code][dateString]})`);
                             return false;
                         }
-                        
-                        return true;
+                        // メイン業務区分チェック
+                        return emp.businessTypes && emp.businessTypes.some(bt => 
+                            bt.code === businessTypeCode && bt.isMain === true
+                        );
                     });
                     
-                    console.log(`  該当従業員数: ${suitableEmployees.length}人`);
-                    console.log(`  該当従業員: ${suitableEmployees.map(e => e.name).join(', ') || 'なし'}`);
+                    console.log(`  メイン従業員数: ${mainEmployees.length}人`);
+                    console.log(`  メイン従業員: ${mainEmployees.map(e => e.name).join(', ') || 'なし'}`);
                     
-                    // 従業員を優先順位でソート
-                    const sortedEmployees = sortEmployeesByPriority(
-                        suitableEmployees, businessTypeCode, dateString, 
-                        shiftRequests, workStats, shiftConditions
-                    );
-                    
-                    console.log(`  優先順位ソート後: ${sortedEmployees.map(e => e.name).join(', ') || 'なし'}`);
-                    
-                    // 必要人数まで配置
                     let assignedCount = 0;
-                    for (const emp of sortedEmployees) {
-                        if (assignedCount >= requiredCount) {
-                            console.log(`  必要人数 ${requiredCount} 人に達したため配置終了`);
-                            break;
-                        }
+                    
+                    // メイン業務従業員を優先配置
+                    if (mainEmployees.length > 0) {
+                        const sortedMainEmployees = sortEmployeesByPriority(
+                            mainEmployees, businessTypeCode, dateString, 
+                            shiftRequests, workStats, shiftConditions
+                        );
                         
-                        console.log(`  🔍 ${emp.name} の配置可能性をチェック中...`);
-                        
-                        // 最終チェック
-                        if (canAssignEmployee(emp, dateString, requiredTime, shiftRequests, shiftConditions)) {
-                            currentShift[emp.code][dateString] = requiredTime;
-                            updateWorkStats(workStats, emp.code, dateString, requiredTime);
-                            assignedCount++;
-                            assigned = true;
+                        for (const emp of sortedMainEmployees) {
+                            if (assignedCount >= requiredCount) break;
                             
-                            console.log(`  ✅ ${emp.name} を ${requiredTime} に配置 (${assignedCount}/${requiredCount})`);
-                        } else {
-                            console.log(`  ❌ ${emp.name} は配置不可`);
+                            console.log(`  🔍 ${emp.name}(メイン) の配置可能性をチェック中...`);
+                            
+                            if (canAssignEmployee(emp, dateString, requiredTime, shiftRequests, shiftConditions)) {
+                                currentShift[emp.code][dateString] = requiredTime;
+                                updateWorkStats(workStats, emp.code, dateString, requiredTime);
+                                assignedCount++;
+                                assigned = true;
+                                
+                                console.log(`  ✅ ${emp.name}(メイン) を ${requiredTime} に配置 (${assignedCount}/${requiredCount})`);
+                            } else {
+                                console.log(`  ❌ ${emp.name}(メイン) は配置不可`);
+                            }
+                        }
+                    }
+                    
+                    // Step2: 不足分をサブ業務従業員で補完
+                    if (assignedCount < requiredCount) {
+                        const subEmployees = availableEmployees.filter(emp => {
+                            // 既に配置済みでないかチェック
+                            if (currentShift[emp.code][dateString]) {
+                                return false;
+                            }
+                            // サブ業務区分チェック
+                            return emp.businessTypes && emp.businessTypes.some(bt => 
+                                bt.code === businessTypeCode && bt.isMain !== true
+                            );
+                        });
+                        
+                        console.log(`  サブ従業員数: ${subEmployees.length}人`);
+                        console.log(`  サブ従業員: ${subEmployees.map(e => e.name).join(', ') || 'なし'}`);
+                        
+                        if (subEmployees.length > 0) {
+                            const sortedSubEmployees = sortEmployeesByPriority(
+                                subEmployees, businessTypeCode, dateString, 
+                                shiftRequests, workStats, shiftConditions
+                            );
+                            
+                            for (const emp of sortedSubEmployees) {
+                                if (assignedCount >= requiredCount) break;
+                                
+                                console.log(`  🔍 ${emp.name}(サブ) の配置可能性をチェック中...`);
+                                
+                                if (canAssignEmployee(emp, dateString, requiredTime, shiftRequests, shiftConditions)) {
+                                    currentShift[emp.code][dateString] = requiredTime;
+                                    updateWorkStats(workStats, emp.code, dateString, requiredTime);
+                                    assignedCount++;
+                                    assigned = true;
+                                    
+                                    console.log(`  ✅ ${emp.name}(サブ) を ${requiredTime} に配置 (${assignedCount}/${requiredCount})`);
+                                } else {
+                                    console.log(`  ❌ ${emp.name}(サブ) は配置不可`);
+                                }
+                            }
                         }
                     }
                     

@@ -31,19 +31,28 @@ $(document).ready(function() {
     
     // 業務区分一覧を描画
     function renderBusinessTypeList() {
+        // 構築順でソート
+        const sortedBusinessTypes = [...currentBusinessTypes].sort((a, b) => {
+            const orderA = a.buildOrder || 999;
+            const orderB = b.buildOrder || 999;
+            return orderA - orderB;
+        });
+        
         let html = '<table class="table"><thead><tr>';
-        html += '<th>業務区分コード</th><th>業務区分名</th><th>説明</th><th>操作</th>';
+        html += '<th>構築順</th><th>業務区分コード</th><th>業務区分名</th><th>説明</th><th>操作</th>';
         html += '</tr></thead><tbody>';
         
-        currentBusinessTypes.forEach((businessType, index) => {
+        sortedBusinessTypes.forEach((businessType, index) => {
+            const originalIndex = currentBusinessTypes.findIndex(bt => bt.code === businessType.code);
             html += `
                 <tr>
+                    <td><span style="background: #3498db; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">${businessType.buildOrder || '-'}</span></td>
                     <td>${businessType.code}</td>
                     <td>${businessType.name}</td>
                     <td>${businessType.description || ''}</td>
                     <td>
-                        <button class="btn btn-primary edit-btn" data-index="${index}" style="margin-right: 5px;">編集</button>
-                        <button class="btn btn-secondary delete-btn" data-index="${index}">削除</button>
+                        <button class="btn btn-primary edit-btn" data-index="${originalIndex}" style="margin-right: 5px;">編集</button>
+                        <button class="btn btn-secondary delete-btn" data-index="${originalIndex}">削除</button>
                     </td>
                 </tr>
             `;
@@ -80,6 +89,7 @@ $(document).ready(function() {
         $('#bt-code').val('').prop('readonly', false);
         $('#bt-name').val('');
         $('#bt-description').val('');
+        $('#bt-build-order').val('');
     }
     
     // 業務区分編集
@@ -92,6 +102,7 @@ $(document).ready(function() {
         $('#bt-code').val(businessType.code).prop('readonly', true);
         $('#bt-name').val(businessType.name);
         $('#bt-description').val(businessType.description || '');
+        $('#bt-build-order').val(businessType.buildOrder || '');
     }
     
     // 業務区分削除
@@ -136,10 +147,16 @@ $(document).ready(function() {
         const code = $('#bt-code').val().trim();
         const name = $('#bt-name').val().trim();
         const description = $('#bt-description').val().trim();
+        const buildOrder = parseInt($('#bt-build-order').val()) || 999;
         
         // バリデーション
         if (!code || !name) {
             showError('業務区分コードと業務区分名を入力してください。');
+            return;
+        }
+        
+        if (isNaN(buildOrder) || buildOrder < 1) {
+            showError('自動シフト構築順は1以上の数値を入力してください。');
             return;
         }
         
@@ -162,7 +179,8 @@ $(document).ready(function() {
         const businessTypeData = {
             code: code,
             name: name,
-            description: description
+            description: description,
+            buildOrder: buildOrder
         };
         
         // 保存

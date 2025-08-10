@@ -55,6 +55,14 @@
                     <textarea id="bt-description" class="form-control" rows="3" placeholder="業務内容の説明を入力してください"></textarea>
                 </div>
 
+                <div class="form-group">
+                    <label for="bt-build-order">自動シフト構築順</label>
+                    <input type="number" id="bt-build-order" class="form-control" min="1" max="100" required>
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        数字が小さいほど早く処理されます（例: 事務=1, 調理=2）
+                    </small>
+                </div>
+
                 <div style="text-align: center; margin-top: 30px;">
                     <button type="submit" class="btn btn-success" style="margin-right: 10px;">保存</button>
                     <button type="button" id="cancel-btn" class="btn btn-secondary">キャンセル</button>
