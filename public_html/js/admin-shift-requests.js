@@ -89,6 +89,7 @@ $(document).ready(function() {
                 try {
                     const requests = await apiClient.getShiftRequests(emp.employee_code, year, month);
                     allShiftRequests[emp.employee_code] = requests;
+                    console.log(`${emp.name} のシフト希望:`, requests);
                     return { employee_code: emp.employee_code, requests };
                 } catch (error) {
                     console.warn(`従業員 ${emp.employee_code} のシフト希望取得エラー:`, error);
@@ -98,7 +99,7 @@ $(document).ready(function() {
             });
             
             await Promise.all(requestPromises);
-            console.log('シフト希望データ取得完了');
+            console.log('シフト希望データ取得完了:', allShiftRequests);
             
             updateUI();
             hideMessage();
@@ -149,6 +150,8 @@ $(document).ready(function() {
         
         filteredData = [];
         
+        console.log('フィルター適用開始:', { employeeFilter, statusFilter });
+        
         employees.forEach(emp => {
             // 従業員フィルター
             if (employeeFilter && emp.employee_code !== employeeFilter) {
@@ -177,7 +180,7 @@ $(document).ready(function() {
                 
                 // ステータスフィルター
                 if (statusFilter && statusFilter !== status) {
-                    return;
+                    continue; // return ではなく continue を使用
                 }
                 
                 filteredData.push({
@@ -190,7 +193,7 @@ $(document).ready(function() {
             }
         });
         
-        console.log('フィルター適用後のデータ数:', filteredData.length);
+        console.log(`フィルター適用結果: ${filteredData.length}件 (employee: ${employeeFilter || 'all'}, status: ${statusFilter || 'all'})`);
     }
     
     // シフト希望テーブル描画
