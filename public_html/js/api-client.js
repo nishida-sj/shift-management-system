@@ -265,10 +265,16 @@ class DataConverter {
             }
         }
 
+        console.log('=== employeeToApi変換 ===');
+        console.log('従業員名:', localEmployee.name);
+        console.log('業務区分(複数):', localEmployee.businessTypes);
+        console.log('業務区分(従来):', businessType);
+        
         return {
             employee_code: localEmployee.code,
             name: localEmployee.name,
-            business_type: businessType,
+            business_type: businessType, // 後方互換性
+            business_types: localEmployee.businessTypes, // 新しい複数業務区分
             password: localEmployee.password,
             shift_priority: localEmployee.shiftPriority ? 1 : 0,
             available_days: availableDays,
@@ -337,13 +343,24 @@ class DataConverter {
         
         console.log('最終的な週間スケジュール:', weeklySchedule);
 
+        // 業務区分変換: 新しいbusiness_typesがあれば使用、なければ従来形式から変換
+        let businessTypes;
+        if (apiEmployee.business_types && Array.isArray(apiEmployee.business_types)) {
+            console.log('新しいbusiness_typesを使用:', apiEmployee.business_types);
+            businessTypes = apiEmployee.business_types;
+        } else {
+            console.log('従来のbusiness_typeから変換:', apiEmployee.business_type);
+            businessTypes = [{
+                code: apiEmployee.business_type === '調理' ? 'cooking' : 'office',
+                isMain: true
+            }];
+        }
+        console.log('最終的な業務区分:', businessTypes);
+        
         return {
             code: apiEmployee.employee_code,
             name: apiEmployee.name,
-            businessTypes: [{
-                code: apiEmployee.business_type === '調理' ? 'cooking' : 'office',
-                isMain: true
-            }],
+            businessTypes: businessTypes,
             password: apiEmployee.password,
             shiftPriority: apiEmployee.shift_priority === 1,
             conditions: {
