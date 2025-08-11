@@ -40,9 +40,22 @@ function handleGet($db) {
             $stmt->execute(['employee_code' => $employee_code]);
             $employee = $stmt->fetch();
             
+            // デバッグ: カラム名を確認
+            if ($employee) {
+                error_log('=== 取得したカラム一覧 ===');
+                error_log('カラム名: ' . implode(', ', array_keys($employee)));
+            }
+            
             if (!$employee) {
                 sendErrorResponse('指定された従業員が見つかりません', 404);
             }
+            
+            // デバッグ: 取得した生データをログ出力
+            error_log('=== 個別従業員取得 (生データ) ===');
+            error_log('employee_code: ' . $employee['employee_code']);
+            error_log('business_type: ' . ($employee['business_type'] ?? 'NULL'));
+            error_log('business_types: ' . ($employee['business_types'] ?? 'NULL'));
+            error_log('business_types型: ' . gettype($employee['business_types'] ?? null));
             
             // JSON フィールドをデコード
             if ($employee['available_days']) {
@@ -53,9 +66,11 @@ function handleGet($db) {
             }
             if ($employee['business_types']) {
                 $employee['business_types'] = json_decode($employee['business_types'], true);
+                error_log('business_types デコード後: ' . json_encode($employee['business_types'], JSON_UNESCAPED_UNICODE));
             } else {
                 // 後方互換性: 既存のbusiness_typeから生成
                 $employee['business_types'] = convertLegacyBusinessType($employee['business_type'] ?? '事務');
+                error_log('後方互換性で生成したbusiness_types: ' . json_encode($employee['business_types'], JSON_UNESCAPED_UNICODE));
             }
             
             // 編集用の場合はパスワードも返す（管理者のみ）
@@ -70,6 +85,17 @@ function handleGet($db) {
             $employees = $stmt->fetchAll();
             
             foreach ($employees as &$employee) {
+                // デバッグ: 最初の従業員のみログ出力（全員だと大量になるため）
+                static $first_debug = true;
+                if ($first_debug) {
+                    error_log('=== 全従業員取得 (最初の従業員の生データ) ===');
+                    error_log('employee_code: ' . $employee['employee_code']);
+                    error_log('business_type: ' . ($employee['business_type'] ?? 'NULL'));
+                    error_log('business_types: ' . ($employee['business_types'] ?? 'NULL'));
+                    error_log('business_types型: ' . gettype($employee['business_types'] ?? null));
+                    $first_debug = false;
+                }
+                
                 if ($employee['available_days']) {
                     $employee['available_days'] = json_decode($employee['available_days'], true);
                 }
