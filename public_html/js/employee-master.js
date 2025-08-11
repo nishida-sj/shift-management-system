@@ -247,12 +247,17 @@ $(document).ready(function() {
             $('#max-days-per-week').val(fullEmployee.conditions.maxDaysPerWeek || 5);
             
             // 業務区分を設定
+            console.log('=== 従業員編集画面の業務区分設定 ===');
+            console.log('fullEmployee.businessTypes:', fullEmployee.businessTypes);
             $('#business-types-container').empty();
             if (fullEmployee.businessTypes && fullEmployee.businessTypes.length > 0) {
-                fullEmployee.businessTypes.forEach(bt => {
+                console.log(`${fullEmployee.businessTypes.length}個の業務区分を設定中...`);
+                fullEmployee.businessTypes.forEach((bt, index) => {
+                    console.log(`業務区分${index + 1}: code=${bt.code}, isMain=${bt.isMain}`);
                     addBusinessTypeRow(bt.code, bt.isMain);
                 });
             } else {
+                console.log('業務区分データが空、デフォルト行を追加');
                 addBusinessTypeRow();
             }
             
@@ -624,18 +629,28 @@ $(document).ready(function() {
             }
         };
         
+        console.log('=== 従業員保存処理 ===');
+        console.log('作成した従業員データ:', employeeData);
+        console.log('業務区分詳細:', employeeBusinessTypes);
+        
         // 保存
         try {
             // API形式に変換
+            console.log('API形式への変換開始...');
             const apiEmployee = dataConverter.employeeToApi(employeeData);
+            console.log('変換後のAPIデータ:', apiEmployee);
             
             if (editingIndex === -1) {
                 // 新規追加
-                await apiClient.saveEmployee(apiEmployee, false);
+                console.log('新規追加API呼び出し...');
+                const result = await apiClient.saveEmployee(apiEmployee, false);
+                console.log('新規追加結果:', result);
                 showSuccess('新規従業員を追加しました。');
             } else {
                 // 更新
-                await apiClient.saveEmployee(apiEmployee, true);
+                console.log('更新API呼び出し...');
+                const result = await apiClient.saveEmployee(apiEmployee, true);
+                console.log('更新結果:', result);
                 showSuccess('従業員情報を更新しました。');
             }
             

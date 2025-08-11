@@ -97,6 +97,8 @@ function handleGet($db) {
 
 function handlePost($db) {
     $input = getJsonInput();
+    error_log('=== 従業員POST処理 ===');
+    error_log('受信データ: ' . json_encode($input, JSON_UNESCAPED_UNICODE));
     
     // 必須項目チェック
     validateRequired($input, ['employee_code', 'name', 'password']);
@@ -137,6 +139,10 @@ function handlePost($db) {
         $business_types = isset($input['business_types']) ? $input['business_types'] : convertLegacyBusinessType($input['business_type']);
         $business_type = isset($input['business_type']) ? $input['business_type'] : getMainBusinessTypeLegacy($business_types);
         
+        error_log('準備した業務区分データ:');
+        error_log('business_types: ' . json_encode($business_types, JSON_UNESCAPED_UNICODE));
+        error_log('business_type: ' . $business_type);
+        
         $sql = "INSERT INTO employees (employee_code, name, business_type, business_types, password, shift_priority, available_days, 
                 preferred_time_start, preferred_time_end, weekly_schedule, work_limit_per_day, work_limit_per_month) 
                 VALUES (:employee_code, :name, :business_type, :business_types, :password, :shift_priority, :available_days, 
@@ -171,6 +177,8 @@ function handlePost($db) {
 
 function handlePut($db) {
     $input = getJsonInput();
+    error_log('=== 従業員PUT処理 ===');
+    error_log('受信データ: ' . json_encode($input, JSON_UNESCAPED_UNICODE));
     
     // 必須項目チェック
     validateRequired($input, ['employee_code', 'name']);
@@ -212,6 +220,12 @@ function handlePut($db) {
         } else if (isset($input['business_type'])) {
             $business_types = convertLegacyBusinessType($input['business_type']);
             $business_type = $input['business_type'];
+        }
+        
+        if ($business_types !== null) {
+            error_log('PUT処理の業務区分データ:');
+            error_log('business_types: ' . json_encode($business_types, JSON_UNESCAPED_UNICODE));
+            error_log('business_type: ' . $business_type);
         }
         
         $sql = "UPDATE employees SET name = :name, shift_priority = :shift_priority,
