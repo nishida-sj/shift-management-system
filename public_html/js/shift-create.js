@@ -1032,8 +1032,20 @@ $(document).ready(function() {
     
     // 従業員が指定時間帯に勤務可能かチェック（カスタム時間帯対応含む）
     function canWorkAtTime(employee, dayOfWeek, requiredTime, dateString, shiftRequests) {
+        console.log(`🔍 canWorkAtTime: ${employee.name} の ${dateString} ${requiredTime} 勤務可能性チェック`);
+        
+        // 休み希望チェック（最重要）
+        const requests = shiftRequests[employee.code] || {};
+        const employeeRequest = requests[dateString];
+        
+        if (employeeRequest === 'off') {
+            console.log(`  ❌ ${employee.name}: ${dateString} に休み希望あり`);
+            return false;
+        }
+        
         // 曜日別出勤可能時間をチェック
         if (!employee.conditions.weeklySchedule || !employee.conditions.weeklySchedule[dayOfWeek]) {
+            console.log(`  ❌ ${employee.name}: 曜日${dayOfWeek}の勤務時間設定なし`);
             return false;
         }
         
@@ -1041,6 +1053,7 @@ $(document).ready(function() {
         
         // 「終日」が設定されている場合はどの時間帯でもOK
         if (daySchedule.includes('終日')) {
+            console.log(`  ✅ ${employee.name}: 終日設定あり → OK`);
             return true;
         }
         
@@ -1049,36 +1062,27 @@ $(document).ready(function() {
             if (availableTime === '終日') continue;
             
             if (isTimeRangeIncluded(requiredTime, availableTime)) {
-                console.log(`✓ 時間範囲包含OK: ${requiredTime} が ${availableTime} に含まれる`);
+                console.log(`  ✅ ${employee.name}: ${requiredTime} が ${availableTime} に含まれる → OK`);
                 return true;
             }
         }
         
-        // 従業員の時間帯希望をチェック（API経由で取得）
-        const requests = shiftRequests[employee.code] || {};
-        const employeePreference = requests[dateString];
+        // 従業員の時間帯希望をチェック（カスタム希望時間帯）
+        console.log(`  🔍 ${employee.name}: カスタム時間帯希望をチェック "${employeeRequest || '設定なし'}"`);
         
-        console.log(`従業員 ${employee.name} の ${dateString} 希望: "${employeePreference}"`);
-        
-        if (employeePreference && employeePreference !== 'off' && employeePreference !== '') {
+        if (employeeRequest && employeeRequest !== 'off' && employeeRequest !== '') {
+            console.log(`  🔍 ${employee.name}: カスタム希望 "${employeeRequest}" と要求 "${requiredTime}" の重複チェック`);
+            
             // カスタム時間帯の場合、重複チェック
-            if (isTimeOverlap(employeePreference, requiredTime)) {
-                console.log(`✓ 時間帯重複OK: ${employeePreference} と ${requiredTime}`);
+            if (isTimeOverlap(employeeRequest, requiredTime)) {
+                console.log(`  ✅ ${employee.name}: カスタム希望と要求時間が重複 → OK`);
                 return true;
-            }
-        } else if (!employeePreference || employeePreference === '') {
-            // 「選択無し」の場合は、基本的な条件（曜日別出勤可能時間）を満たしていればOK
-            // 時間範囲包含チェック（再度）
-            for (const availableTime of daySchedule) {
-                if (availableTime === '終日') continue;
-                
-                if (isTimeRangeIncluded(requiredTime, availableTime)) {
-                    console.log(`選択無し → 基本条件OK: ${requiredTime} が ${availableTime} に含まれる`);
-                    return true;
-                }
+            } else {
+                console.log(`  ❌ ${employee.name}: カスタム希望と要求時間が重複しない`);
             }
         }
         
+        console.log(`  ❌ ${employee.name}: すべての条件を満たさない → NG`);
         return false;
     }
     
