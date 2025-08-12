@@ -38,6 +38,9 @@ function handleGet($db) {
     validateDate((int)$year, (int)$month);
     
     try {
+        error_log('=== shift-requests.php GET処理開始 ===');
+        error_log('検索条件: employee_code=' . $employee_code . ', year=' . $year . ', month=' . $month);
+        
         $sql = "SELECT sr.*, e.name as employee_name 
                 FROM shift_requests sr 
                 LEFT JOIN employees e ON sr.employee_code = e.employee_code 
@@ -52,21 +55,13 @@ function handleGet($db) {
         ]);
         $requests = $stmt->fetchAll();
         
-        // 日付をキーとした連想配列に変換
-        $shiftRequests = [];
-        foreach ($requests as $request) {
-            $dateKey = sprintf('%04d-%02d-%02d', $request['year'], $request['month'], $request['day']);
-            
-            if ($request['is_off_requested'] == 1) {
-                $shiftRequests[$dateKey] = 'off';
-            } else if ($request['preferred_time_start'] && $request['preferred_time_end']) {
-                $startTime = substr($request['preferred_time_start'], 0, 5); // 秒を除去
-                $endTime = substr($request['preferred_time_end'], 0, 5);
-                $shiftRequests[$dateKey] = $startTime . '-' . $endTime;
-            }
+        error_log('データベースから取得した行数: ' . count($requests));
+        if (count($requests) > 0) {
+            error_log('最初のレコード: ' . json_encode($requests[0]));
         }
         
-        sendJsonResponse($shiftRequests);
+        // requestsFromApi関数と互換性を保つため、配列形式で返す（従来のshifts.php形式）
+        sendJsonResponse($requests);
         
     } catch (PDOException $e) {
         error_log('Shift requests fetch error: ' . $e->getMessage());
