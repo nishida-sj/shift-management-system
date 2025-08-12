@@ -426,14 +426,30 @@ $(document).ready(function() {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth() + 1;
             
+            // 時間データを秒付き形式に変換
+            let startTime = null;
+            let endTime = null;
+            if (requestType === 'custom') {
+                const [start, end] = requestValue.split('-');
+                startTime = start + ':00';  // HH:MM:SS形式に変換
+                endTime = end + ':00';      // HH:MM:SS形式に変換
+            }
+            
+            console.log('管理者保存データ:', {
+                employeeCode: editingRequest.employeeCode,
+                year, month, day: new Date(editingRequest.date).getDate(),
+                isOff: requestValue === 'off',
+                startTime, endTime
+            });
+
             await apiClient.saveShiftRequest(
                 editingRequest.employeeCode,
                 year,
                 month,
                 new Date(editingRequest.date).getDate(),
                 requestValue === 'off' ? true : false,
-                requestType === 'custom' ? requestValue.split('-')[0] : null,
-                requestType === 'custom' ? requestValue.split('-')[1] : null
+                startTime,
+                endTime
             );
             
             showSuccess('シフト希望を保存しました。');

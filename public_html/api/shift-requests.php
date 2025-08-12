@@ -72,6 +72,9 @@ function handleGet($db) {
 function handlePost($db) {
     $input = getJsonInput();
     
+    error_log('=== shift-requests.php POST処理開始 ===');
+    error_log('受信データ: ' . json_encode($input));
+    
     // 必須項目チェック
     validateRequired($input, ['employee_code', 'year', 'month', 'day']);
     
@@ -82,6 +85,9 @@ function handlePost($db) {
     $is_off_requested = $input['is_off_requested'] ?? false;
     $preferred_time_start = $input['preferred_time_start'] ?? null;
     $preferred_time_end = $input['preferred_time_end'] ?? null;
+    
+    error_log('処理パラメータ: employee_code=' . $employee_code . ', date=' . $year . '-' . $month . '-' . $day);
+    error_log('希望内容: is_off=' . ($is_off_requested ? 'true' : 'false') . ', start=' . $preferred_time_start . ', end=' . $preferred_time_end);
     
     // 日付検証
     validateDate($year, $month, $day);
@@ -113,6 +119,9 @@ function handlePost($db) {
             'preferred_time_start' => $preferred_time_start,
             'preferred_time_end' => $preferred_time_end
         ]);
+        
+        error_log('データベース挿入完了: ' . $stmt->rowCount() . '行影響');
+        error_log('=== shift-requests.php POST処理完了 ===');
         
         sendJsonResponse(['message' => 'シフト希望を登録しました'], 201);
         
