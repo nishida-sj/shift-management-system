@@ -87,9 +87,15 @@ $(document).ready(function() {
             allShiftRequests = {};
             const requestPromises = employees.map(async (emp) => {
                 try {
-                    const requests = await apiClient.getShiftRequests(emp.employee_code, year, month);
+                    console.log(`=== ${emp.name} のデータ取得開始 ===`);
+                    const apiRequests = await apiClient.getShiftRequests(emp.employee_code, year, month);
+                    console.log(`${emp.name} のAPI生データ:`, apiRequests);
+                    
+                    // APIレスポンスを日付キー形式に変換
+                    const requests = dataConverter.requestsFromApi(apiRequests);
+                    console.log(`${emp.name} の変換後データ:`, requests);
+                    
                     allShiftRequests[emp.employee_code] = requests;
-                    console.log(`${emp.name} のシフト希望:`, requests);
                     return { employee_code: emp.employee_code, requests };
                 } catch (error) {
                     console.warn(`従業員 ${emp.employee_code} のシフト希望取得エラー:`, error);
