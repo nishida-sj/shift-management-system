@@ -477,11 +477,13 @@ class DataConverter {
     static requestsFromApi(apiRequests) {
         console.log('=== requestsFromApi: データ変換開始 ===');
         console.log('API生データ:', apiRequests);
+        console.log('API生データの型:', typeof apiRequests);
+        console.log('API生データの長さ:', apiRequests ? apiRequests.length : 'N/A');
         
         const localRequests = {};
         
         if (!apiRequests || !Array.isArray(apiRequests)) {
-            console.log('APIレスポンスが無効またはからの配列');
+            console.log('❌ APIレスポンスが無効または空の配列');
             return localRequests;
         }
         

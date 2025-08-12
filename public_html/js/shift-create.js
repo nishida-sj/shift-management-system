@@ -939,17 +939,31 @@ $(document).ready(function() {
     async function createDayShift(employees, dateString, event, dayOfWeek) {
         // シフト希望データを事前に取得
         const shiftRequests = {};
+        console.log('=== 全従業員のシフト希望データ取得開始 ===');
         for (const emp of employees) {
             try {
+                console.log(`🔍 従業員 ${emp.name} (${emp.code}) のシフト希望を取得中...`);
                 const apiRequests = await apiClient.getShiftRequests(emp.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
+                console.log(`API生データ (${emp.code}):`, apiRequests);
+                
                 shiftRequests[emp.code] = dataConverter.requestsFromApi(apiRequests);
-                console.log(`従業員 ${emp.code} のシフト希望:`, shiftRequests[emp.code]);
+                console.log(`変換後データ (${emp.code}):`, shiftRequests[emp.code]);
+                
+                // 休み希望をハイライト
+                const offDays = Object.keys(shiftRequests[emp.code]).filter(date => shiftRequests[emp.code][date] === 'off');
+                if (offDays.length > 0) {
+                    console.log(`📅 ${emp.name} の休み希望: ${offDays.join(', ')}`);
+                } else {
+                    console.log(`📅 ${emp.name}: 休み希望なし`);
+                }
             } catch (error) {
-                console.error(`従業員 ${emp.code} のシフト希望取得エラー:`, error);
+                console.error(`❌ 従業員 ${emp.code} のシフト希望取得エラー:`, error);
                 // エラー時はlocalStorageからフォールバック
                 shiftRequests[emp.code] = dataManager.getEmployeeRequests(emp.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
+                console.log(`フォールバック (${emp.code}):`, shiftRequests[emp.code]);
             }
         }
+        console.log('=== 全従業員のシフト希望データ取得完了 ===');
         
         // 利用可能な従業員を取得
         const availableEmployees = employees.filter(emp => {
