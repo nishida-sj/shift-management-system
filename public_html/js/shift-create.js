@@ -110,8 +110,37 @@ $(document).ready(function() {
             console.log('シフト作成: 取得した従業員数:', employees.length);
             console.log('シフト作成: 取得した行事数:', eventMaster.length);
             console.log('シフト作成: 取得した月間行事予定:', Object.keys(monthlyEvents).length);
-            currentShift = dataManager.getConfirmedShift(year, month);
-            shiftStatus = dataManager.getShiftStatus(year, month);
+            
+            // APIから確定シフトと状態を取得
+            const [apiShifts, apiStatus] = await Promise.all([
+                apiClient.getConfirmedShifts(year, month).catch(() => []),
+                apiClient.getShiftStatus(year, month).catch(() => ({ is_confirmed: 0 }))
+            ]);
+            
+            console.log('シフト作成: API確定シフトデータ:', apiShifts);
+            console.log('シフト作成: APIシフト状態:', apiStatus);
+            
+            // 確定シフトデータをローカル形式に変換
+            currentShift = {};
+            if (apiShifts && Array.isArray(apiShifts)) {
+                apiShifts.forEach(shift => {
+                    const key = `${shift.employee_code}_${shift.day}`;
+                    currentShift[key] = {
+                        employeeCode: shift.employee_code,
+                        day: shift.day,
+                        timeStart: shift.time_start,
+                        timeEnd: shift.time_end,
+                        businessType: shift.business_type || '事務',
+                        isViolation: shift.is_violation === 1
+                    };
+                });
+            }
+            
+            // シフト状態を変換
+            shiftStatus = apiStatus.is_confirmed === 1 ? 'confirmed' : 'draft';
+            
+            console.log('シフト作成: 変換後currentShift:', currentShift);
+            console.log('シフト作成: 変換後shiftStatus:', shiftStatus);
             
             // 空のシフトデータを初期化
             if (Object.keys(currentShift).length === 0) {
@@ -1270,13 +1299,23 @@ $(document).ready(function() {
             
             console.log('シフト確定: 開始', { year, month });
             console.log('シフト確定: currentShiftの内容:', currentShift);
+            console.log('シフト確定: currentShiftのキー数:', Object.keys(currentShift).length);
+            console.log('シフト確定: currentShiftのキー一覧:', Object.keys(currentShift));
             
             // 確定シフトデータをAPI形式に変換
             const apiShifts = [];
-            Object.keys(currentShift).forEach(key => {
+            Object.keys(currentShift).forEach((key, index) => {
                 const shift = currentShift[key];
+                console.log(`シフト確定: キー${index + 1} "${key}":`, shift);
+                console.log(`シフト確定: 条件チェック:`, {
+                    employeeCode: shift.employeeCode ? 'OK' : 'NG (' + shift.employeeCode + ')',
+                    day: shift.day ? 'OK' : 'NG (' + shift.day + ')',
+                    timeStart: shift.timeStart ? 'OK' : 'NG (' + shift.timeStart + ')',
+                    timeEnd: shift.timeEnd ? 'OK' : 'NG (' + shift.timeEnd + ')'
+                });
+                
                 if (shift.employeeCode && shift.day && shift.timeStart && shift.timeEnd) {
-                    apiShifts.push({
+                    const apiShift = {
                         employee_code: shift.employeeCode,
                         year: year,
                         month: month,
@@ -1285,7 +1324,11 @@ $(document).ready(function() {
                         time_end: shift.timeEnd,
                         business_type: shift.businessType || '事務',
                         is_violation: shift.isViolation ? 1 : 0
-                    });
+                    };
+                    apiShifts.push(apiShift);
+                    console.log(`シフト確定: APIデータに追加:`, apiShift);
+                } else {
+                    console.warn(`シフト確定: キー "${key}" はスキップされました（条件不足）`);
                 }
             });
             
