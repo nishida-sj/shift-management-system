@@ -5,28 +5,33 @@ $(document).ready(function() {
     let shiftStatus = 'draft';
     
     // 初期表示
-    loadData();
-    renderShiftTable();
-    renderSummaryTable();
-    loadNotes();
-    updateStatusDisplay();
+    initialize();
     
-    // 月移動ボタン
-    $('#prev-month').on('click', function() {
-        currentDate.setMonth(currentDate.getMonth() - 1);
-        loadData();
+    // 初期化関数
+    async function initialize() {
+        await loadData();
         renderShiftTable();
         renderSummaryTable();
-        loadNotes();
+        await loadNotes();
+        updateStatusDisplay();
+    }
+
+    // 月移動ボタン
+    $('#prev-month').on('click', async function() {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        await loadData();
+        renderShiftTable();
+        renderSummaryTable();
+        await loadNotes();
         updateStatusDisplay();
     });
     
-    $('#next-month').on('click', function() {
+    $('#next-month').on('click', async function() {
         currentDate.setMonth(currentDate.getMonth() + 1);
-        loadData();
+        await loadData();
         renderShiftTable();
         renderSummaryTable();
-        loadNotes();
+        await loadNotes();
         updateStatusDisplay();
     });
     
@@ -41,14 +46,65 @@ $(document).ready(function() {
     });
     
     // データ読み込み
-    function loadData() {
-        employees = dataManager.getEmployees();
-        
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        
-        currentShift = dataManager.getConfirmedShift(year, month);
-        shiftStatus = dataManager.getShiftStatus(year, month);
+    async function loadData() {
+        try {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            console.log('確定シフト閲覧: データ読み込み開始', { year, month });
+            
+            // APIから並行してデータを取得
+            const [apiEmployees, apiShifts, apiStatus] = await Promise.all([
+                apiClient.getEmployees(),
+                apiClient.getConfirmedShifts(year, month),
+                apiClient.getShiftStatus(year, month).catch(() => ({ is_confirmed: 0 })) // エラー時はデフォルト値
+            ]);
+            
+            console.log('確定シフト閲覧: API従業員データ:', apiEmployees);
+            console.log('確定シフト閲覧: API確定シフトデータ:', apiShifts);
+            console.log('確定シフト閲覧: APIシフト状態:', apiStatus);
+            
+            // 従業員データを変換
+            employees = apiEmployees.map(emp => dataConverter.employeeFromApi(emp));
+            
+            // 確定シフトデータをローカル形式に変換
+            currentShift = {};
+            if (apiShifts && Array.isArray(apiShifts)) {
+                apiShifts.forEach(shift => {
+                    const key = `${shift.employee_code}_${shift.day}`;
+                    currentShift[key] = {
+                        employeeCode: shift.employee_code,
+                        day: shift.day,
+                        timeStart: shift.time_start,
+                        timeEnd: shift.time_end,
+                        businessType: shift.business_type,
+                        isViolation: shift.is_violation === 1
+                    };
+                });
+            }
+            
+            // シフト状態を変換
+            shiftStatus = apiStatus.is_confirmed === 1 ? 'confirmed' : 'draft';
+            
+            console.log('確定シフト閲覧: 変換後従業員データ:', employees);
+            console.log('確定シフト閲覧: 変換後シフトデータ:', currentShift);
+            console.log('確定シフト閲覧: シフト状態:', shiftStatus);
+            
+        } catch (error) {
+            console.error('確定シフト閲覧: データ読み込みエラー:', error);
+            
+            // フォールバック: ローカルデータを使用
+            employees = dataManager.getEmployees();
+            
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            currentShift = dataManager.getConfirmedShift(year, month);
+            shiftStatus = dataManager.getShiftStatus(year, month);
+            
+            console.log('確定シフト閲覧: フォールバック - ローカルデータを使用');
+            showError('データの読み込みに失敗しました。ローカルデータを表示しています。');
+        }
     }
     
     // ステータス表示更新
@@ -268,16 +324,47 @@ $(document).ready(function() {
     }
     
     // 備考読み込み
-    function loadNotes() {
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        const notes = dataManager.getShiftNotes(year, month);
-        
-        if (notes.general && notes.general.trim() !== '') {
-            $('#shift-notes').text(notes.general);
-            $('#notes-section').show();
-        } else {
-            $('#notes-section').hide();
+    async function loadNotes() {
+        try {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            const apiNotes = await apiClient.getShiftNotes(year, month);
+            console.log('確定シフト閲覧: API備考データ:', apiNotes);
+            
+            if (apiNotes.notes && apiNotes.notes.trim() !== '') {
+                $('#shift-notes').text(apiNotes.notes);
+                $('#notes-section').show();
+            } else {
+                $('#notes-section').hide();
+            }
+        } catch (error) {
+            console.error('確定シフト閲覧: 備考読み込みエラー:', error);
+            
+            // フォールバック: ローカルデータを使用
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            const notes = dataManager.getShiftNotes(year, month);
+            
+            if (notes.general && notes.general.trim() !== '') {
+                $('#shift-notes').text(notes.general);
+                $('#notes-section').show();
+            } else {
+                $('#notes-section').hide();
+            }
+        }
+    }
+    
+    // エラーメッセージ表示
+    function showError(message) {
+        console.error('確定シフト閲覧エラー:', message);
+        // エラー表示要素がある場合は表示
+        const errorEl = $('#error-message');
+        if (errorEl.length > 0) {
+            errorEl.text(message).show();
+            setTimeout(function() {
+                errorEl.fadeOut();
+            }, 5000);
         }
     }
     
