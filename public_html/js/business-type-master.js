@@ -24,17 +24,22 @@ $(document).ready(function() {
     });
     
     // 業務区分一覧を読み込み
-    function loadBusinessTypes() {
-        currentBusinessTypes = dataManager.getBusinessTypes();
-        renderBusinessTypeList();
+    async function loadBusinessTypes() {
+        try {
+            currentBusinessTypes = await apiClient.getBusinessTypes();
+            renderBusinessTypeList();
+        } catch (error) {
+            console.error('業務区分データ取得エラー:', error);
+            showError('業務区分データの取得に失敗しました。');
+        }
     }
     
     // 業務区分一覧を描画
     function renderBusinessTypeList() {
         // 構築順でソート
         const sortedBusinessTypes = [...currentBusinessTypes].sort((a, b) => {
-            const orderA = a.buildOrder || 999;
-            const orderB = b.buildOrder || 999;
+            const orderA = a.build_order || 999;
+            const orderB = b.build_order || 999;
             return orderA - orderB;
         });
         
@@ -46,7 +51,7 @@ $(document).ready(function() {
             const originalIndex = currentBusinessTypes.findIndex(bt => bt.code === businessType.code);
             html += `
                 <tr>
-                    <td><span style="background: #3498db; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">${businessType.buildOrder || '-'}</span></td>
+                    <td><span style="background: #3498db; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">${businessType.build_order || '-'}</span></td>
                     <td>${businessType.code}</td>
                     <td>${businessType.name}</td>
                     <td>${businessType.description || ''}</td>
@@ -102,47 +107,27 @@ $(document).ready(function() {
         $('#bt-code').val(businessType.code).prop('readonly', true);
         $('#bt-name').val(businessType.name);
         $('#bt-description').val(businessType.description || '');
-        $('#bt-build-order').val(businessType.buildOrder || '');
+        $('#bt-build-order').val(businessType.build_order || '');
     }
     
     // 業務区分削除
     async function deleteBusinessType(index) {
         const businessType = currentBusinessTypes[index];
         
-        // 削除前チェック：現在存在する従業員でこの業務区分を使用しているかチェック
-        try {
-            const apiEmployees = await apiClient.getEmployees();
-            const isUsed = apiEmployees.some(emp => emp.business_type === businessType.name);
-            
-            if (isUsed) {
-                const usingEmployees = apiEmployees
-                    .filter(emp => emp.business_type === businessType.name)
-                    .map(emp => emp.name)
-                    .join('、');
-                showError(`この業務区分は以下の従業員によって使用されているため削除できません:\n${usingEmployees}`);
-                return;
-            }
-            
-            if (confirm(`業務区分「${businessType.name}」を削除しますか？\n現在使用している従業員はいません。\n\nこの操作は取り消せません。`)) {
-                currentBusinessTypes.splice(index, 1);
-                dataManager.saveBusinessTypes(currentBusinessTypes);
-                renderBusinessTypeList();
+        if (confirm(`業務区分「${businessType.name}」を削除しますか？\nこの操作は取り消せません。`)) {
+            try {
+                await apiClient.deleteBusinessType(businessType.code);
+                await loadBusinessTypes(); // データを再読み込み
                 showSuccess('業務区分を削除しました。');
-            }
-        } catch (error) {
-            console.error('従業員データ取得エラー:', error);
-            // APIエラーの場合は従来通りの確認で削除を許可
-            if (confirm(`業務区分「${businessType.name}」を削除しますか？\n※従業員データの確認ができませんでした。\n\nこの操作は取り消せません。`)) {
-                currentBusinessTypes.splice(index, 1);
-                dataManager.saveBusinessTypes(currentBusinessTypes);
-                renderBusinessTypeList();
-                showSuccess('業務区分を削除しました。');
+            } catch (error) {
+                console.error('業務区分削除エラー:', error);
+                showError(error.message || '業務区分の削除に失敗しました。');
             }
         }
     }
     
     // 業務区分保存
-    function saveBusinessType() {
+    async function saveBusinessType() {
         // 入力値取得
         const code = $('#bt-code').val().trim();
         const name = $('#bt-name').val().trim();
@@ -166,37 +151,30 @@ $(document).ready(function() {
             return;
         }
         
-        // 業務区分コードの重複チェック（新規の場合）
-        if (editingIndex === -1) {
-            const existingBusinessType = currentBusinessTypes.find(bt => bt.code === code);
-            if (existingBusinessType) {
-                showError('この業務区分コードは既に使用されています。');
-                return;
-            }
-        }
-        
         // 業務区分データを作成
         const businessTypeData = {
             code: code,
             name: name,
             description: description,
-            buildOrder: buildOrder
+            build_order: buildOrder
         };
         
         // 保存
-        if (editingIndex === -1) {
-            // 新規追加
-            currentBusinessTypes.push(businessTypeData);
-            showSuccess('新規業務区分を追加しました。');
-        } else {
-            // 更新
-            currentBusinessTypes[editingIndex] = businessTypeData;
-            showSuccess('業務区分情報を更新しました。');
+        try {
+            await apiClient.saveBusinessType(businessTypeData);
+            await loadBusinessTypes(); // データを再読み込み
+            
+            if (editingIndex === -1) {
+                showSuccess('新規業務区分を追加しました。');
+            } else {
+                showSuccess('業務区分情報を更新しました。');
+            }
+            
+            closeModal();
+        } catch (error) {
+            console.error('業務区分保存エラー:', error);
+            showError(error.message || '業務区分の保存に失敗しました。');
         }
-        
-        dataManager.saveBusinessTypes(currentBusinessTypes);
-        renderBusinessTypeList();
-        closeModal();
     }
     
     // 成功メッセージ表示

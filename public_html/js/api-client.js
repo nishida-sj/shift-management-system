@@ -236,6 +236,37 @@ class ApiClient {
             notes
         });
     }
+
+    // 会社マスタ
+    async getCompanyInfo() {
+        return this.get('/company.php');
+    }
+
+    async saveCompanyInfo(companyInfo) {
+        return this.post('/company.php', companyInfo);
+    }
+
+    // 業務区分マスタ
+    async getBusinessTypes() {
+        return this.get('/business-types.php');
+    }
+
+    async saveBusinessType(businessType) {
+        return this.post('/business-types.php', businessType);
+    }
+
+    async deleteBusinessType(code) {
+        return this.delete('/business-types.php', { code });
+    }
+
+    // シフト条件設定
+    async getShiftConditions() {
+        return this.get('/shift-conditions.php');
+    }
+
+    async saveShiftConditions(conditions) {
+        return this.post('/shift-conditions.php', conditions);
+    }
 }
 
 // データ形式変換ユーティリティ

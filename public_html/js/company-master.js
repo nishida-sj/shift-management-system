@@ -16,19 +16,25 @@ $(document).ready(function() {
     });
     
     // 会社情報を読み込み
-    function loadCompanyInfo() {
+    async function loadCompanyInfo() {
         try {
-            const companyInfo = dataManager.getCompanyInfo();
+            const companyInfo = await apiClient.getCompanyInfo();
             
-            if (companyInfo && Object.keys(companyInfo).length > 0) {
-                // フォームに値を設定
+            if (companyInfo && (companyInfo.name || companyInfo.manager_name)) {
+                // フォームに値を設定（APIフィールド名に対応）
                 $('#company-name').val(companyInfo.name || '');
-                $('#closing-date').val(companyInfo.closingDate || '');
-                $('#manager-name').val(companyInfo.managerName || '');
-                $('#manager-contact').val(companyInfo.managerContact || '');
+                $('#closing-date').val(companyInfo.closing_date || '');
+                $('#manager-name').val(companyInfo.manager_name || '');
+                $('#manager-contact').val(companyInfo.manager_contact || '');
                 
                 // 現在の情報を表示
-                displayCompanyInfo(companyInfo);
+                displayCompanyInfo({
+                    name: companyInfo.name,
+                    closingDate: companyInfo.closing_date,
+                    managerName: companyInfo.manager_name,
+                    managerContact: companyInfo.manager_contact,
+                    updatedAt: companyInfo.updated_at
+                });
             } else {
                 displayNoCompanyInfo();
             }
@@ -39,14 +45,13 @@ $(document).ready(function() {
     }
     
     // 会社情報を保存
-    function saveCompanyInfo() {
+    async function saveCompanyInfo() {
         try {
             const companyInfo = {
                 name: $('#company-name').val().trim(),
-                closingDate: $('#closing-date').val(),
-                managerName: $('#manager-name').val().trim(),
-                managerContact: $('#manager-contact').val().trim(),
-                updatedAt: new Date().toISOString()
+                closing_date: $('#closing-date').val(),
+                manager_name: $('#manager-name').val().trim(),
+                manager_contact: $('#manager-contact').val().trim()
             };
             
             // バリデーション
@@ -54,27 +59,35 @@ $(document).ready(function() {
                 showError('会社名を入力してください。');
                 return;
             }
-            if (!companyInfo.closingDate) {
+            if (!companyInfo.closing_date) {
                 showError('締め日を選択してください。');
                 return;
             }
-            if (!companyInfo.managerName) {
+            if (!companyInfo.manager_name) {
                 showError('責任者名を入力してください。');
                 return;
             }
-            if (!companyInfo.managerContact) {
+            if (!companyInfo.manager_contact) {
                 showError('責任者連絡先を入力してください。');
                 return;
             }
             
             // 連絡先の簡単なバリデーション
-            if (!isValidContact(companyInfo.managerContact)) {
+            if (!isValidContact(companyInfo.manager_contact)) {
                 showError('責任者連絡先の形式が正しくありません。電話番号またはメールアドレスを入力してください。');
                 return;
             }
             
-            dataManager.saveCompanyInfo(companyInfo);
-            displayCompanyInfo(companyInfo);
+            await apiClient.saveCompanyInfo(companyInfo);
+            
+            // 表示用に変換
+            displayCompanyInfo({
+                name: companyInfo.name,
+                closingDate: companyInfo.closing_date,
+                managerName: companyInfo.manager_name,
+                managerContact: companyInfo.manager_contact,
+                updatedAt: new Date().toISOString()
+            });
             showSuccess('会社情報を保存しました。');
             
         } catch (error) {

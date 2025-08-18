@@ -29,7 +29,7 @@ $(document).ready(function() {
     async function loadData() {
         try {
             const dataManager = new DataManager();
-            currentBusinessTypes = dataManager.getBusinessTypes();
+            currentBusinessTypes = await apiClient.getBusinessTypes();
             currentOrders = dataManager.getEmployeeOrders();
             
             // APIから現在有効な従業員を取得
@@ -51,11 +51,12 @@ $(document).ready(function() {
                 selectBusinessType(currentBusinessTypes[0].code);
             }
         } catch (error) {
-            console.error('従業員データ取得エラー:', error);
-            console.log('フォールバック: localStorageから従業員データを取得します');
+            console.error('データ取得エラー:', error);
+            console.log('フォールバック: localStorageからデータを取得します');
             
             // エラー時はフォールバック（従来のlocalStorage）
             const dataManager = new DataManager();
+            currentBusinessTypes = dataManager.getBusinessTypes();
             employees = dataManager.getEmployees();
             console.log('フォールバック従業員データ:', employees);
             

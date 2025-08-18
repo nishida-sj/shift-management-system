@@ -62,10 +62,17 @@ $(document).ready(function() {
     }
     
     // 設定を読み込み
-    function loadSettings() {
-        const saved = localStorage.getItem('shiftApp_shiftConditions');
-        if (saved) {
-            currentSettings = JSON.parse(saved);
+    async function loadSettings() {
+        try {
+            currentSettings = await apiClient.getShiftConditions();
+        } catch (error) {
+            console.error('シフト条件取得エラー:', error);
+            // フォールバック: localStorageから読み込み
+            const saved = localStorage.getItem('shiftApp_shiftConditions');
+            if (saved) {
+                currentSettings = JSON.parse(saved);
+            }
+            showError('シフト条件の読み込みに失敗しました。ローカルデータを使用します。');
         }
         
         // フォームに値を設定
@@ -155,7 +162,7 @@ $(document).ready(function() {
     });
     
     // 設定を保存
-    function saveSettings() {
+    async function saveSettings() {
         try {
             // 基本設定を取得
             currentSettings.basicSettings = {
@@ -197,7 +204,10 @@ $(document).ready(function() {
                 warnInsufficientRest: $('#warn-insufficient-rest').is(':checked')
             };
             
-            // ローカルストレージに保存
+            // APIで保存
+            await apiClient.saveShiftConditions(currentSettings);
+            
+            // 後方互換性のためローカルストレージにも保存
             localStorage.setItem('shiftApp_shiftConditions', JSON.stringify(currentSettings));
             
             showSuccess('設定を保存しました。');
@@ -232,14 +242,25 @@ $(document).ready(function() {
         }, 5000);
     }
     
-    // データマネージャーに設定取得関数を追加
+    // データマネージャーに設定取得関数を追加（後方互換性）
     if (typeof dataManager !== 'undefined') {
-        dataManager.getShiftConditions = function() {
-            const saved = localStorage.getItem('shiftApp_shiftConditions');
-            return saved ? JSON.parse(saved) : getDefaultSettings();
+        dataManager.getShiftConditions = async function() {
+            try {
+                return await apiClient.getShiftConditions();
+            } catch (error) {
+                console.warn('API経由でのシフト条件取得に失敗、localStorageを使用:', error);
+                const saved = localStorage.getItem('shiftApp_shiftConditions');
+                return saved ? JSON.parse(saved) : getDefaultSettings();
+            }
         };
         
-        dataManager.saveShiftConditions = function(settings) {
+        dataManager.saveShiftConditions = async function(settings) {
+            try {
+                await apiClient.saveShiftConditions(settings);
+            } catch (error) {
+                console.warn('API経由でのシフト条件保存に失敗、localStorageに保存:', error);
+            }
+            // 常にlocalStorageにも保存（後方互換性）
             localStorage.setItem('shiftApp_shiftConditions', JSON.stringify(settings));
         };
     }

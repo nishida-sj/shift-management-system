@@ -96,7 +96,7 @@ $(document).ready(function() {
                 }
             });
             
-            businessTypes = dataManager.getBusinessTypes(); // 業務区分は従来通り
+            businessTypes = await apiClient.getBusinessTypes(); // API経由で取得
             renderEmployeeList();
         } catch (error) {
             console.error('従業員データ取得エラー:', error);
