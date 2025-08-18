@@ -286,10 +286,49 @@ function saveShiftRequests($db, $input) {
 }
 
 function saveConfirmedShifts($db, $input) {
+    error_log('=== saveConfirmedShifts開始 ===');
+    error_log('Input data: ' . json_encode($input));
+    
     validateRequired($input, ['year', 'month', 'shifts']);
     validateDate($input['year'], $input['month']);
     
+    if (!is_array($input['shifts'])) {
+        error_log('shiftsが配列ではありません: ' . gettype($input['shifts']));
+        sendErrorResponse('shiftsは配列である必要があります');
+    }
+    
+    if (empty($input['shifts'])) {
+        error_log('shiftsが空の配列です');
+        sendJsonResponse(['message' => '削除のみ実行されました（シフトデータなし）']);
+        return;
+    }
+    
+    error_log('処理するシフト件数: ' . count($input['shifts']));
+    
     try {
+        // テーブルが存在するかチェック
+        $checkTable = $db->query("SHOW TABLES LIKE 'confirmed_shifts'");
+        if ($checkTable->rowCount() == 0) {
+            error_log('confirmed_shiftsテーブルが存在しません。作成します。');
+            $createTable = "CREATE TABLE confirmed_shifts (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                employee_code VARCHAR(50) NOT NULL,
+                year INT NOT NULL,
+                month INT NOT NULL,
+                day INT NOT NULL,
+                time_start TIME NOT NULL,
+                time_end TIME NOT NULL,
+                business_type VARCHAR(50) DEFAULT '事務',
+                is_violation TINYINT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_year_month (year, month),
+                INDEX idx_employee (employee_code)
+            )";
+            $db->exec($createTable);
+            error_log('confirmed_shiftsテーブルを作成しました。');
+        }
+        
         $db->beginTransaction();
         
         // 既存データ削除

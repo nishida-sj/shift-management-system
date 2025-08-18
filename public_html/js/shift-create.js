@@ -1290,6 +1290,13 @@ $(document).ready(function() {
             });
             
             console.log('シフト確定: API形式シフトデータ:', apiShifts);
+            console.log('シフト確定: API形式シフトデータ件数:', apiShifts.length);
+            
+            if (apiShifts.length === 0) {
+                console.warn('シフト確定: シフトデータが空です');
+                showError('確定するシフトデータがありません。シフトを作成してから確定してください。');
+                return;
+            }
             
             // APIに保存（並行実行）
             await Promise.all([
