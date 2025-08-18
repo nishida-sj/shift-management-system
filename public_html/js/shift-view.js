@@ -56,8 +56,14 @@ $(document).ready(function() {
             // APIから並行してデータを取得
             const [apiEmployees, apiShifts, apiStatus] = await Promise.all([
                 apiClient.getEmployees(),
-                apiClient.getConfirmedShifts(year, month),
-                apiClient.getShiftStatus(year, month).catch(() => ({ is_confirmed: 0 })) // エラー時はデフォルト値
+                apiClient.getConfirmedShifts(year, month).catch(err => {
+                    console.error('確定シフト閲覧: 確定シフト取得エラー:', err);
+                    return []; // エラー時は空配列
+                }),
+                apiClient.getShiftStatus(year, month).catch(err => {
+                    console.error('確定シフト閲覧: シフト状態取得エラー:', err);
+                    return { is_confirmed: 0 }; // エラー時はデフォルト値
+                })
             ]);
             
             console.log('確定シフト閲覧: API従業員データ:', apiEmployees);
@@ -69,8 +75,17 @@ $(document).ready(function() {
             
             // 確定シフトデータをローカル形式に変換
             currentShift = {};
+            console.log('確定シフト閲覧: APIシフトデータ詳細:', {
+                type: typeof apiShifts,
+                isArray: Array.isArray(apiShifts),
+                length: apiShifts ? apiShifts.length : 'N/A',
+                data: apiShifts
+            });
+            
             if (apiShifts && Array.isArray(apiShifts)) {
-                apiShifts.forEach(shift => {
+                console.log(`確定シフト閲覧: ${apiShifts.length}件のシフトデータを処理中`);
+                apiShifts.forEach((shift, index) => {
+                    console.log(`確定シフト閲覧: シフト${index + 1}:`, shift);
                     const key = `${shift.employee_code}_${shift.day}`;
                     currentShift[key] = {
                         employeeCode: shift.employee_code,
@@ -80,7 +95,10 @@ $(document).ready(function() {
                         businessType: shift.business_type,
                         isViolation: shift.is_violation === 1
                     };
+                    console.log(`確定シフト閲覧: 作成されたキー "${key}":`, currentShift[key]);
                 });
+            } else {
+                console.warn('確定シフト閲覧: APIシフトデータが配列ではないか、空です');
             }
             
             // シフト状態を変換
@@ -125,13 +143,20 @@ $(document).ready(function() {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
         
+        console.log('確定シフト閲覧: シフト表描画開始', { year, month: month + 1 });
+        console.log('確定シフト閲覧: currentShiftの内容:', currentShift);
+        console.log('確定シフト閲覧: currentShiftのキー数:', Object.keys(currentShift).length);
+        
         // 月表示を更新
         $('#current-month').text(year + '年' + (month + 1) + '月の確定シフト');
         
         if (Object.keys(currentShift).length === 0) {
+            console.warn('確定シフト閲覧: シフトデータが空のため表示なし');
             $('#shift-table-container').html('<p style="text-align: center; color: #666; padding: 40px;">このシフトデータはありません。</p>');
             return;
         }
+        
+        console.log('確定シフト閲覧: シフトデータが存在、表描画を開始');
         
         const lastDay = new Date(year, month + 1, 0).getDate();
         const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
