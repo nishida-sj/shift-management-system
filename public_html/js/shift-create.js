@@ -124,15 +124,20 @@ $(document).ready(function() {
             currentShift = {};
             if (apiShifts && Array.isArray(apiShifts)) {
                 apiShifts.forEach(shift => {
-                    const key = `${shift.employee_code}_${shift.day}`;
-                    currentShift[key] = {
-                        employeeCode: shift.employee_code,
-                        day: shift.day,
-                        timeStart: shift.time_start,
-                        timeEnd: shift.time_end,
-                        businessType: shift.business_type || '事務',
-                        isViolation: shift.is_violation === 1
-                    };
+                    // ネストした構造で格納: currentShift[employeeCode][dateString] = "timeStart-timeEnd"
+                    if (!currentShift[shift.employee_code]) {
+                        currentShift[shift.employee_code] = {};
+                    }
+                    
+                    // 日付文字列を生成 (YYYY-MM-DD形式)
+                    const dateString = `${shift.year}-${String(shift.month).padStart(2, '0')}-${String(shift.day).padStart(2, '0')}`;
+                    
+                    // 時間範囲文字列を生成 (HH:MM-HH:MM形式)
+                    const timeStart = shift.time_start.substring(0, 5); // HH:MM:SS -> HH:MM
+                    const timeEnd = shift.time_end.substring(0, 5);     // HH:MM:SS -> HH:MM
+                    currentShift[shift.employee_code][dateString] = `${timeStart}-${timeEnd}`;
+                    
+                    console.log(`シフト作成: 設定 ${shift.employee_code}[${dateString}] = "${timeStart}-${timeEnd}"`);
                 });
             }
             
@@ -1304,32 +1309,40 @@ $(document).ready(function() {
             
             // 確定シフトデータをAPI形式に変換
             const apiShifts = [];
-            Object.keys(currentShift).forEach((key, index) => {
-                const shift = currentShift[key];
-                console.log(`シフト確定: キー${index + 1} "${key}":`, shift);
-                console.log(`シフト確定: 条件チェック:`, {
-                    employeeCode: shift.employeeCode ? 'OK' : 'NG (' + shift.employeeCode + ')',
-                    day: shift.day ? 'OK' : 'NG (' + shift.day + ')',
-                    timeStart: shift.timeStart ? 'OK' : 'NG (' + shift.timeStart + ')',
-                    timeEnd: shift.timeEnd ? 'OK' : 'NG (' + shift.timeEnd + ')'
-                });
+            Object.keys(currentShift).forEach((employeeCode, empIndex) => {
+                const employeeShifts = currentShift[employeeCode];
+                console.log(`シフト確定: 従業員${empIndex + 1} "${employeeCode}"のシフト:`, employeeShifts);
                 
-                if (shift.employeeCode && shift.day && shift.timeStart && shift.timeEnd) {
-                    const apiShift = {
-                        employee_code: shift.employeeCode,
-                        year: year,
-                        month: month,
-                        day: shift.day,
-                        time_start: shift.timeStart,
-                        time_end: shift.timeEnd,
-                        business_type: shift.businessType || '事務',
-                        is_violation: shift.isViolation ? 1 : 0
-                    };
-                    apiShifts.push(apiShift);
-                    console.log(`シフト確定: APIデータに追加:`, apiShift);
-                } else {
-                    console.warn(`シフト確定: キー "${key}" はスキップされました（条件不足）`);
-                }
+                Object.keys(employeeShifts).forEach((dateString, dateIndex) => {
+                    const timeRange = employeeShifts[dateString];
+                    console.log(`シフト確定: 日付${dateIndex + 1} "${dateString}" = "${timeRange}"`);
+                    
+                    if (timeRange && timeRange.includes('-')) {
+                        // 日付文字列から年月日を抽出
+                        const [yearStr, monthStr, dayStr] = dateString.split('-');
+                        const day = parseInt(dayStr);
+                        
+                        // 時間範囲を分割
+                        const [timeStart, timeEnd] = timeRange.split('-');
+                        
+                        // APIデータ形式に変換
+                        const apiShift = {
+                            employee_code: employeeCode,
+                            year: year,
+                            month: month,
+                            day: day,
+                            time_start: timeStart + ':00', // HH:MM:SS形式に
+                            time_end: timeEnd + ':00',     // HH:MM:SS形式に
+                            business_type: '事務', // デフォルト値
+                            is_violation: 0 // デフォルト値
+                        };
+                        
+                        apiShifts.push(apiShift);
+                        console.log(`シフト確定: APIデータに追加:`, apiShift);
+                    } else {
+                        console.warn(`シフト確定: 日付 "${dateString}" の時間範囲 "${timeRange}" が無効です`);
+                    }
+                });
             });
             
             console.log('シフト確定: API形式シフトデータ:', apiShifts);
