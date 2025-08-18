@@ -1259,36 +1259,82 @@ $(document).ready(function() {
     }
     
     // シフト確定
-    function confirmShift() {
+    async function confirmShift() {
         if (!confirm('シフトを確定しますか？確定後は個別修正ができなくなります。')) {
             return;
         }
         
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        
-        dataManager.saveShiftStatus(year, month, 'confirmed');
-        shiftStatus = 'confirmed';
-        
-        saveCurrentShift();
-        updateStatusDisplay();
-        showSuccess('シフトを確定しました。');
+        try {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            console.log('シフト確定: 開始', { year, month });
+            console.log('シフト確定: currentShiftの内容:', currentShift);
+            
+            // 確定シフトデータをAPI形式に変換
+            const apiShifts = [];
+            Object.keys(currentShift).forEach(key => {
+                const shift = currentShift[key];
+                if (shift.employeeCode && shift.day && shift.timeStart && shift.timeEnd) {
+                    apiShifts.push({
+                        employee_code: shift.employeeCode,
+                        year: year,
+                        month: month,
+                        day: shift.day,
+                        time_start: shift.timeStart,
+                        time_end: shift.timeEnd,
+                        business_type: shift.businessType || '事務',
+                        is_violation: shift.isViolation ? 1 : 0
+                    });
+                }
+            });
+            
+            console.log('シフト確定: API形式シフトデータ:', apiShifts);
+            
+            // APIに保存（並行実行）
+            await Promise.all([
+                apiClient.saveConfirmedShifts(year, month, apiShifts),
+                apiClient.saveShiftStatus(year, month, 1) // 1 = confirmed
+            ]);
+            
+            // ローカルストレージにも保存（後方互換性）
+            dataManager.saveShiftStatus(year, month, 'confirmed');
+            shiftStatus = 'confirmed';
+            
+            saveCurrentShift();
+            updateStatusDisplay();
+            showSuccess('シフトを確定しました。データベースに保存されました。');
+            
+        } catch (error) {
+            console.error('シフト確定エラー:', error);
+            showError('シフトの確定に失敗しました。再度お試しください。');
+        }
     }
     
     // 確定解除
-    function unconfirmShift() {
+    async function unconfirmShift() {
         if (!confirm('シフトの確定を解除しますか？解除後は個別修正が可能になります。')) {
             return;
         }
         
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        
-        dataManager.saveShiftStatus(year, month, 'draft');
-        shiftStatus = 'draft';
-        
-        updateStatusDisplay();
-        showSuccess('シフトの確定を解除しました。');
+        try {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            // APIで状態を下書きに変更
+            await apiClient.saveShiftStatus(year, month, 0); // 0 = draft
+            
+            // ローカルストレージも更新（後方互換性）
+            dataManager.saveShiftStatus(year, month, 'draft');
+            shiftStatus = 'draft';
+            
+            updateStatusDisplay();
+            showSuccess('シフトの確定を解除しました。');
+            
+        } catch (error) {
+            console.error('シフト確定解除エラー:', error);
+            showError('シフトの確定解除に失敗しました。再度お試しください。');
+        }
     }
     
     // 印刷プレビューを開く
