@@ -112,11 +112,26 @@ $(document).ready(async function() {
         $('#time-slots-container').html(html);
     }
     
+    // 時間を正規化（H:mm → HH:mm）
+    function normalizeTime(timeString) {
+        if (!timeString) return '';
+        
+        // HH:mm:ss形式の場合は時:分だけ取得
+        if (timeString.includes(':')) {
+            const parts = timeString.split(':');
+            const hours = parts[0].padStart(2, '0');
+            const minutes = parts[1] || '00';
+            return `${hours}:${minutes}`;
+        }
+        
+        return timeString;
+    }
+
     // 時間帯行を作成
     function createTimeSlotRow(timeSlot = '', index = -1) {
         const timeSlotParts = timeSlot.split('-');
-        const startTime = timeSlotParts[0] || '';
-        const endTime = timeSlotParts[1] || '';
+        const startTime = normalizeTime(timeSlotParts[0] || '');
+        const endTime = normalizeTime(timeSlotParts[1] || '');
         
         return `
             <div class="time-slot-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
@@ -156,7 +171,10 @@ $(document).ready(async function() {
             const endTime = row.find('.end-time').val();
             
             if (startTime && endTime) {
-                const displayValue = `${startTime}-${endTime}`;
+                // 表示名は元の形式（H:mm）で保存
+                const displayStartTime = startTime.replace(/^0/, ''); // 先頭0を除去
+                const displayEndTime = endTime.replace(/^0/, ''); // 先頭0を除去
+                const displayValue = `${displayStartTime}-${displayEndTime}`;
                 row.find('.time-display').val(displayValue);
             }
         });
@@ -169,7 +187,10 @@ $(document).ready(async function() {
         const endTime = row.find('.end-time').val();
         
         if (startTime && endTime) {
-            const displayValue = `${startTime}-${endTime}`;
+            // 表示名は元の形式（H:mm）で保存
+            const displayStartTime = startTime.replace(/^0/, ''); // 先頭0を除去
+            const displayEndTime = endTime.replace(/^0/, ''); // 先頭0を除去
+            const displayValue = `${displayStartTime}-${displayEndTime}`;
             row.find('.time-display').val(displayValue);
         }
     });
@@ -191,7 +212,10 @@ $(document).ready(async function() {
                 const endTime = $(this).find('.end-time').val();
                 
                 if (startTime && endTime) {
-                    timeSlots.push(`${startTime}-${endTime}`);
+                    // 保存時は表示形式（H:mm）で統一
+                    const displayStartTime = startTime.replace(/^0/, ''); 
+                    const displayEndTime = endTime.replace(/^0/, '');
+                    timeSlots.push(`${displayStartTime}-${displayEndTime}`);
                 }
             });
             
