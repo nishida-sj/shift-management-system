@@ -24,7 +24,7 @@ $(document).ready(function() {
     
     // 月移動ボタン
     $('#prev-month').on('click', async function() {
-        saveCurrentShift();
+        await saveCurrentShift();
         currentDate.setMonth(currentDate.getMonth() - 1);
         await loadData();
         renderShiftTable();
@@ -33,7 +33,7 @@ $(document).ready(function() {
     });
     
     $('#next-month').on('click', async function() {
-        saveCurrentShift();
+        await saveCurrentShift();
         currentDate.setMonth(currentDate.getMonth() + 1);
         await loadData();
         renderShiftTable();
@@ -46,8 +46,8 @@ $(document).ready(function() {
         autoCreateShift();
     });
     
-    $('#save-draft-btn').on('click', function() {
-        saveCurrentShift();
+    $('#save-draft-btn').on('click', async function() {
+        await saveCurrentShift();
         showSuccess('下書きを保存しました。');
     });
     
@@ -201,9 +201,46 @@ $(document).ready(function() {
     }
     
     // 現在のシフトを保存
-    function saveCurrentShift() {
+    async function saveCurrentShift() {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
+        
+        try {
+            // APIに保存（確定シフトデータをAPI形式に変換）
+            const apiShifts = [];
+            Object.keys(currentShift).forEach(employeeCode => {
+                const employeeShifts = currentShift[employeeCode];
+                Object.keys(employeeShifts).forEach(dateString => {
+                    const timeRange = employeeShifts[dateString];
+                    if (timeRange && timeRange.includes('-')) {
+                        const [yearStr, monthStr, dayStr] = dateString.split('-');
+                        const day = parseInt(dayStr);
+                        const [timeStart, timeEnd] = timeRange.split('-');
+                        
+                        apiShifts.push({
+                            employee_code: employeeCode,
+                            year: year,
+                            month: month,
+                            day: day,
+                            time_start: timeStart + ':00',
+                            time_end: timeEnd + ':00',
+                            business_type: '事務',
+                            is_violation: 0
+                        });
+                    }
+                });
+            });
+            
+            console.log('シフト保存: APIに保存するデータ:', apiShifts);
+            await apiClient.saveConfirmedShifts(year, month, apiShifts);
+            console.log('シフト保存: API保存完了');
+            
+        } catch (error) {
+            console.error('シフト保存: API保存エラー:', error);
+            // エラー時はローカルストレージにフォールバック
+        }
+        
+        // ローカルストレージにも保存（バックアップ・後方互換性）
         dataManager.saveConfirmedShift(year, month, currentShift);
         dataManager.saveShiftCellBackgrounds(year, month, shiftCellBackgrounds);
     }
@@ -611,7 +648,7 @@ $(document).ready(function() {
             }
             
             renderShiftTable();
-            saveCurrentShift();
+            await saveCurrentShift();
             
             showSuccess(`シフト自動作成完了: ${successCount}日作成、${skipCount}日スキップ`);
             
@@ -1364,7 +1401,7 @@ $(document).ready(function() {
             dataManager.saveShiftStatus(year, month, 'confirmed');
             shiftStatus = 'confirmed';
             
-            saveCurrentShift();
+            await saveCurrentShift();
             updateStatusDisplay();
             showSuccess('シフトを確定しました。データベースに保存されました。');
             

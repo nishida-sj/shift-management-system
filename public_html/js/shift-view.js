@@ -86,16 +86,21 @@ $(document).ready(function() {
                 console.log(`確定シフト閲覧: ${apiShifts.length}件のシフトデータを処理中`);
                 apiShifts.forEach((shift, index) => {
                     console.log(`確定シフト閲覧: シフト${index + 1}:`, shift);
-                    const key = `${shift.employee_code}_${shift.day}`;
-                    currentShift[key] = {
-                        employeeCode: shift.employee_code,
-                        day: shift.day,
-                        timeStart: shift.time_start,
-                        timeEnd: shift.time_end,
-                        businessType: shift.business_type,
-                        isViolation: shift.is_violation === 1
-                    };
-                    console.log(`確定シフト閲覧: 作成されたキー "${key}":`, currentShift[key]);
+                    
+                    // ネストした構造で格納: currentShift[employeeCode][dateString] = "timeStart-timeEnd"
+                    if (!currentShift[shift.employee_code]) {
+                        currentShift[shift.employee_code] = {};
+                    }
+                    
+                    // 日付文字列を生成 (YYYY-MM-DD形式)
+                    const dateString = `${shift.year}-${String(shift.month).padStart(2, '0')}-${String(shift.day).padStart(2, '0')}`;
+                    
+                    // 時間範囲文字列を生成 (HH:MM-HH:MM形式)
+                    const timeStart = shift.time_start.substring(0, 5); // HH:MM:SS -> HH:MM
+                    const timeEnd = shift.time_end.substring(0, 5);     // HH:MM:SS -> HH:MM
+                    currentShift[shift.employee_code][dateString] = `${timeStart}-${timeEnd}`;
+                    
+                    console.log(`確定シフト閲覧: 設定 ${shift.employee_code}[${dateString}] = "${timeStart}-${timeEnd}"`);
                 });
             } else {
                 console.warn('確定シフト閲覧: APIシフトデータが配列ではないか、空です');
