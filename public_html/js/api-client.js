@@ -261,7 +261,10 @@ class ApiClient {
 
     // シフト条件設定
     async getShiftConditions() {
-        return this.get('/shift-conditions.php');
+        console.log('APIClient: シフト条件取得開始');
+        const result = await this.get('/shift-conditions.php');
+        console.log('APIClient: シフト条件取得結果:', result);
+        return result;
     }
 
     async saveShiftConditions(conditions) {

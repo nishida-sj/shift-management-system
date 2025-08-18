@@ -1,8 +1,8 @@
-$(document).ready(function() {
+$(document).ready(async function() {
     let currentSettings = getDefaultSettings();
     
     // 初期表示
-    loadSettings();
+    await loadSettings();
     renderTimeSlots();
     
     // 保存ボタン
@@ -64,13 +64,26 @@ $(document).ready(function() {
     // 設定を読み込み
     async function loadSettings() {
         try {
+            console.log('シフト条件: API呼び出し開始');
             currentSettings = await apiClient.getShiftConditions();
+            console.log('シフト条件: API応答データ:', currentSettings);
+            
+            // APIデータの構造検証
+            if (!currentSettings.basicSettings || !currentSettings.timeSlots) {
+                throw new Error('API応答データの構造が不正です');
+            }
+            
+            console.log('シフト条件: API経由でのデータ読み込み成功');
         } catch (error) {
             console.error('シフト条件取得エラー:', error);
             // フォールバック: localStorageから読み込み
             const saved = localStorage.getItem('shiftApp_shiftConditions');
             if (saved) {
                 currentSettings = JSON.parse(saved);
+                console.log('シフト条件: localStorage データを使用:', currentSettings);
+            } else {
+                currentSettings = getDefaultSettings();
+                console.log('シフト条件: デフォルト設定を使用:', currentSettings);
             }
             showError('シフト条件の読み込みに失敗しました。ローカルデータを使用します。');
         }
@@ -244,9 +257,19 @@ $(document).ready(function() {
     
     // データマネージャーに設定取得関数を追加（後方互換性）
     if (typeof dataManager !== 'undefined') {
-        dataManager.getShiftConditions = async function() {
+        // 同期版：既存コードとの互換性のため
+        dataManager.getShiftConditions = function() {
+            const saved = localStorage.getItem('shiftApp_shiftConditions');
+            return saved ? JSON.parse(saved) : getDefaultSettings();
+        };
+        
+        // 非同期版：新しいAPI対応
+        dataManager.getShiftConditionsAsync = async function() {
             try {
-                return await apiClient.getShiftConditions();
+                const apiData = await apiClient.getShiftConditions();
+                // APIから取得した場合はlocalStorageにも保存（キャッシュ）
+                localStorage.setItem('shiftApp_shiftConditions', JSON.stringify(apiData));
+                return apiData;
             } catch (error) {
                 console.warn('API経由でのシフト条件取得に失敗、localStorageを使用:', error);
                 const saved = localStorage.getItem('shiftApp_shiftConditions');
