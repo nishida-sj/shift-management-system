@@ -211,12 +211,14 @@ class ApiClient {
     }
 
     async saveShiftStatus(year, month, is_confirmed) {
-        return this.post('/shifts.php', {
+        const payload = {
             type: 'status',
             year,
             month,
             is_confirmed
-        });
+        };
+        console.log('APIClient: saveShiftStatus送信データ:', payload);
+        return this.post('/shifts.php', payload);
     }
 
     // シフト備考

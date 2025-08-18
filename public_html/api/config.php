@@ -82,7 +82,7 @@ function getJsonInput() {
 function validateRequired($data, $fields) {
     $missing = [];
     foreach ($fields as $field) {
-        if (!isset($data[$field]) || empty($data[$field])) {
+        if (!isset($data[$field]) || (empty($data[$field]) && $data[$field] !== 0 && $data[$field] !== '0')) {
             $missing[] = $field;
         }
     }

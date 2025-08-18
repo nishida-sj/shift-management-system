@@ -353,6 +353,12 @@ function saveMonthlyEvents($db, $input) {
 }
 
 function saveShiftStatus($db, $input) {
+    error_log('=== saveShiftStatus開始 ===');
+    error_log('Input data: ' . json_encode($input));
+    error_log('Required keys check: year=' . (isset($input['year']) ? 'OK' : 'NG') . 
+              ', month=' . (isset($input['month']) ? 'OK' : 'NG') . 
+              ', is_confirmed=' . (isset($input['is_confirmed']) ? 'OK' : 'NG'));
+    
     validateRequired($input, ['year', 'month', 'is_confirmed']);
     validateDate($input['year'], $input['month']);
     
