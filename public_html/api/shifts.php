@@ -149,6 +149,14 @@ function getShiftStatus($db) {
     validateDate($year, $month);
     
     try {
+        // テーブルが存在するかチェック
+        $checkTable = $db->query("SHOW TABLES LIKE 'shift_status'");
+        if ($checkTable->rowCount() == 0) {
+            // テーブルが存在しない場合はデフォルト値を返す
+            sendJsonResponse(['year' => (int)$year, 'month' => (int)$month, 'is_confirmed' => 0]);
+            return;
+        }
+        
         $stmt = $db->prepare("SELECT * FROM shift_status WHERE year = :year AND month = :month");
         $stmt->execute(['year' => $year, 'month' => $month]);
         $status = $stmt->fetch();
@@ -363,20 +371,48 @@ function saveShiftStatus($db, $input) {
     validateDate($input['year'], $input['month']);
     
     try {
+        // テーブルが存在するかチェック
+        $checkTable = $db->query("SHOW TABLES LIKE 'shift_status'");
+        if ($checkTable->rowCount() == 0) {
+            error_log('shift_statusテーブルが存在しません。作成します。');
+            $createTable = "CREATE TABLE shift_status (
+                year INT NOT NULL,
+                month INT NOT NULL,
+                is_confirmed TINYINT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (year, month)
+            )";
+            $db->exec($createTable);
+            error_log('shift_statusテーブルを作成しました。');
+        }
+        
         $sql = "INSERT INTO shift_status (year, month, is_confirmed) VALUES (:year, :month, :is_confirmed)
                 ON DUPLICATE KEY UPDATE is_confirmed = :is_confirmed, updated_at = CURRENT_TIMESTAMP";
+        error_log('SQL実行: ' . $sql);
+        error_log('Parameters: ' . json_encode([
+            'year' => $input['year'],
+            'month' => $input['month'],
+            'is_confirmed' => $input['is_confirmed']
+        ]));
+        
         $stmt = $db->prepare($sql);
-        $stmt->execute([
+        $result = $stmt->execute([
             'year' => $input['year'],
             'month' => $input['month'],
             'is_confirmed' => $input['is_confirmed']
         ]);
         
+        error_log('SQL実行結果: ' . ($result ? '成功' : '失敗'));
+        error_log('影響を受けた行数: ' . $stmt->rowCount());
+        
         sendJsonResponse(['message' => 'シフト状態を保存しました']);
         
     } catch (PDOException $e) {
         error_log('Shift status save error: ' . $e->getMessage());
-        sendErrorResponse('シフト状態の保存に失敗しました', 500);
+        error_log('Error code: ' . $e->getCode());
+        error_log('SQL State: ' . $e->errorInfo[0] ?? 'N/A');
+        sendErrorResponse('シフト状態の保存に失敗しました: ' . $e->getMessage(), 500);
     }
 }
 
