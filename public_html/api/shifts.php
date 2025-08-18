@@ -388,7 +388,7 @@ function saveShiftStatus($db, $input) {
         }
         
         $sql = "INSERT INTO shift_status (year, month, is_confirmed) VALUES (:year, :month, :is_confirmed)
-                ON DUPLICATE KEY UPDATE is_confirmed = :is_confirmed, updated_at = CURRENT_TIMESTAMP";
+                ON DUPLICATE KEY UPDATE is_confirmed = VALUES(is_confirmed), updated_at = CURRENT_TIMESTAMP";
         error_log('SQL実行: ' . $sql);
         error_log('Parameters: ' . json_encode([
             'year' => $input['year'],
