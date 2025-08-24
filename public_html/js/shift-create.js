@@ -18,6 +18,8 @@ $(document).ready(function() {
         renderShiftTable();
         updateStatusDisplay();
         loadNotes();
+        loadShiftRequestsSidebar();
+        loadShiftRequestsSidebar();
     }
     
     initialize();
@@ -30,6 +32,7 @@ $(document).ready(function() {
         renderShiftTable();
         updateStatusDisplay();
         loadNotes();
+        loadShiftRequestsSidebar();
     });
     
     $('#next-month').on('click', async function() {
@@ -39,6 +42,7 @@ $(document).ready(function() {
         renderShiftTable();
         updateStatusDisplay();
         loadNotes();
+        loadShiftRequestsSidebar();
     });
     
     // 操作ボタン
@@ -1768,5 +1772,54 @@ $(document).ready(function() {
         optionsHtml += '<option value="終日">終日</option>';
         
         $('#edit-shift-time').html(optionsHtml);
+    }
+    
+    // サイドバーにシフト希望を表示
+    async function loadShiftRequestsSidebar() {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
+        
+        try {
+            const response = await fetch(`/api/all-shift-requests.php?year=${year}&month=${month}`);
+            const shiftRequests = await response.json();
+            
+            let sidebarHtml = '';
+            
+            if (shiftRequests.length === 0) {
+                sidebarHtml = '<p style="color: #666; text-align: center; padding: 20px;">シフト希望はありません</p>';
+            } else {
+                shiftRequests.forEach(emp => {
+                    if (emp.requests.length > 0) {
+                        sidebarHtml += `
+                            <div style="margin-bottom: 20px; border-bottom: 1px solid #dee2e6; padding-bottom: 15px;">
+                                <h4 style="color: #495057; font-size: 14px; margin-bottom: 8px;">
+                                    ${emp.employee_name} (${emp.business_type})
+                                </h4>
+                        `;
+                        
+                        emp.requests.forEach(req => {
+                            const requestType = req.is_off_requested ? 
+                                '<span style="color: #dc3545; font-weight: bold;">休み</span>' :
+                                `<span style="color: #007bff;">${req.preferred_time_start || ''}-${req.preferred_time_end || ''}</span>`;
+                            
+                            sidebarHtml += `
+                                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; padding: 2px 0;">
+                                    <span>${req.day}日</span>
+                                    <span>${requestType}</span>
+                                </div>
+                            `;
+                        });
+                        
+                        sidebarHtml += '</div>';
+                    }
+                });
+            }
+            
+            $('#shift-requests-content').html(sidebarHtml);
+            
+        } catch (error) {
+            console.error('シフト希望読み込みエラー:', error);
+            $('#shift-requests-content').html('<p style="color: #dc3545; text-align: center; padding: 20px;">読み込みエラー</p>');
+        }
     }
 });
