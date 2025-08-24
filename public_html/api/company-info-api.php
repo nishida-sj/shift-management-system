@@ -16,19 +16,28 @@ switch ($_SERVER['REQUEST_METHOD']) {
 
 function getCompanyInfo($db) {
     try {
-        $stmt = $db->prepare("SELECT company_data FROM company_info ORDER BY id DESC LIMIT 1");
+        $stmt = $db->prepare("SELECT name, closing_date, manager_name, manager_contact FROM company_info ORDER BY id DESC LIMIT 1");
         $stmt->execute();
         $result = $stmt->fetch();
         
         if ($result) {
-            sendJsonResponse(json_decode($result['company_data'], true));
+            sendJsonResponse([
+                'name' => $result['name'] ?: 'サンプル会社',
+                'address' => '', // 既存テーブルにはアドレスフィールドがない
+                'phone' => $result['manager_contact'] ?: '03-0000-0000',
+                'email' => '', // 既存テーブルにはメールフィールドがない
+                'closing_date' => $result['closing_date'] ?: '',
+                'manager_name' => $result['manager_name'] ?: ''
+            ]);
         } else {
             // デフォルト会社情報を返す
             $defaultCompanyInfo = [
                 'name' => 'サンプル会社',
                 'address' => '〒000-0000 東京都',
                 'phone' => '03-0000-0000',
-                'email' => 'info@example.com'
+                'email' => 'info@example.com',
+                'closing_date' => '',
+                'manager_name' => ''
             ];
             sendJsonResponse($defaultCompanyInfo);
         }
@@ -45,8 +54,10 @@ function saveCompanyInfo($db) {
         // 必須フィールドのバリデーション
         validateRequired($input, ['name']);
         
-        // データを JSON 形式で保存
-        $companyData = json_encode($input, JSON_UNESCAPED_UNICODE);
+        $name = $input['name'];
+        $closing_date = $input['closing_date'] ?? null;
+        $manager_name = $input['manager_name'] ?? '';
+        $manager_contact = $input['phone'] ?? $input['manager_contact'] ?? '';
         
         // 既存のレコードを削除して新しいレコードを挿入
         $db->beginTransaction();
@@ -56,8 +67,8 @@ function saveCompanyInfo($db) {
         $stmt->execute();
         
         // 新しいデータを挿入
-        $stmt = $db->prepare("INSERT INTO company_info (company_data) VALUES (?)");
-        $stmt->execute([$companyData]);
+        $stmt = $db->prepare("INSERT INTO company_info (name, closing_date, manager_name, manager_contact) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$name, $closing_date, $manager_name, $manager_contact]);
         
         $db->commit();
         sendJsonResponse(['success' => true, 'message' => '会社情報を保存しました']);

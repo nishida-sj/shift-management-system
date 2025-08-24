@@ -16,12 +16,18 @@ switch ($_SERVER['REQUEST_METHOD']) {
 
 function getShiftConditions($db) {
     try {
-        $stmt = $db->prepare("SELECT condition_data FROM shift_conditions ORDER BY id DESC LIMIT 1");
+        $stmt = $db->prepare("SELECT basic_settings, time_slots, priorities, warnings FROM shift_conditions ORDER BY id DESC LIMIT 1");
         $stmt->execute();
         $result = $stmt->fetch();
         
         if ($result) {
-            sendJsonResponse(json_decode($result['condition_data'], true));
+            $settings = [
+                'basicSettings' => json_decode($result['basic_settings'] ?: '{}', true),
+                'timeSlots' => json_decode($result['time_slots'] ?: '[]', true),
+                'priorities' => json_decode($result['priorities'] ?: '{}', true),
+                'warnings' => json_decode($result['warnings'] ?: '{}', true)
+            ];
+            sendJsonResponse($settings);
         } else {
             // デフォルト設定を返す
             $defaultSettings = [
@@ -70,8 +76,11 @@ function saveShiftConditions($db) {
             sendErrorResponse('必須項目が不足しています');
         }
         
-        // データを JSON 形式で保存
-        $conditionData = json_encode($input, JSON_UNESCAPED_UNICODE);
+        // 各セクションをJSON形式で保存
+        $basicSettings = json_encode($input['basicSettings'], JSON_UNESCAPED_UNICODE);
+        $timeSlots = json_encode($input['timeSlots'], JSON_UNESCAPED_UNICODE);
+        $priorities = json_encode($input['priorities'], JSON_UNESCAPED_UNICODE);
+        $warnings = json_encode($input['warnings'], JSON_UNESCAPED_UNICODE);
         
         // 既存のレコードを削除して新しいレコードを挿入
         $db->beginTransaction();
@@ -81,8 +90,8 @@ function saveShiftConditions($db) {
         $stmt->execute();
         
         // 新しいデータを挿入
-        $stmt = $db->prepare("INSERT INTO shift_conditions (condition_data) VALUES (?)");
-        $stmt->execute([$conditionData]);
+        $stmt = $db->prepare("INSERT INTO shift_conditions (basic_settings, time_slots, priorities, warnings) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$basicSettings, $timeSlots, $priorities, $warnings]);
         
         $db->commit();
         sendJsonResponse(['success' => true, 'message' => 'シフト条件を保存しました']);

@@ -22,7 +22,7 @@ function getEmployeeOrders($db) {
         
         $orders = [];
         foreach ($results as $row) {
-            $orders[$row['business_type_code']] = json_decode($row['order_data'], true);
+            $orders[$row['business_type_code']] = json_decode($row['order_data'] ?: '[]', true);
         }
         
         sendJsonResponse($orders);
