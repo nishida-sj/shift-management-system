@@ -37,7 +37,20 @@ $(document).ready(function() {
             const apiEmployees = await apiClient.getEmployees();
             console.log('従業員並び順: API生データ:', apiEmployees);
             
-            employees = apiEmployees.map(emp => dataConverter.employeeFromApi(emp));
+            // APIデータをdataConverter経由で変換を試み、失敗した場合は直接使用
+            try {
+                employees = apiEmployees.map(emp => dataConverter.employeeFromApi(emp));
+                console.log('従業員並び順: dataConverter変換成功');
+            } catch (conversionError) {
+                console.warn('dataConverter変換失敗、直接データを使用:', conversionError);
+                // 直接APIデータを使用（business_typesをbusinessTypesに変換）
+                employees = apiEmployees.map(emp => ({
+                    code: emp.employee_code,
+                    name: emp.name,
+                    businessTypes: [{ code: emp.business_type === '事務' ? 'office' : 'cooking', isMain: true }]
+                }));
+            }
+            
             console.log('従業員並び順: 変換後データ:', employees);
             console.log('従業員並び順: 取得した従業員一覧:');
             employees.forEach(emp => {
@@ -105,9 +118,19 @@ $(document).ready(function() {
     // 従業員リストを描画
     function renderEmployeeList(businessTypeCode) {
         // 該当業務区分をメインとする従業員を取得
-        const mainEmployees = employees.filter(emp => 
-            emp.businessTypes && emp.businessTypes.some(bt => bt.code === businessTypeCode && bt.isMain)
-        );
+        console.log('フィルタリング対象businessTypeCode:', businessTypeCode);
+        console.log('フィルタリング前従業員データ:', employees);
+        
+        const mainEmployees = employees.filter(emp => {
+            const hasBusinessType = emp.businessTypes && emp.businessTypes.some(bt => {
+                console.log(`従業員${emp.name}の業務区分チェック:`, bt.code, 'vs', businessTypeCode, 'isMain:', bt.isMain);
+                return bt.code === businessTypeCode && bt.isMain;
+            });
+            console.log(`従業員${emp.name}は${businessTypeCode}でフィルタ:`, hasBusinessType);
+            return hasBusinessType;
+        });
+        
+        console.log(`${businessTypeCode}でフィルタされた従業員:`, mainEmployees);
         
         if (mainEmployees.length === 0) {
             $('#employee-order-container').html(`
