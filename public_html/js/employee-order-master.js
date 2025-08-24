@@ -28,9 +28,9 @@ $(document).ready(function() {
     // データを読み込み
     async function loadData() {
         try {
-            const dataManager = new DataManager();
+            // APIからデータを取得
             currentBusinessTypes = await apiClient.getBusinessTypes();
-            currentOrders = dataManager.getEmployeeOrders();
+            currentOrders = await apiClient.getEmployeeOrders();
             
             // APIから現在有効な従業員を取得
             console.log('従業員並び順: API呼び出し開始');
@@ -52,21 +52,7 @@ $(document).ready(function() {
             }
         } catch (error) {
             console.error('データ取得エラー:', error);
-            console.log('フォールバック: localStorageからデータを取得します');
-            
-            // エラー時はフォールバック（従来のlocalStorage）
-            const dataManager = new DataManager();
-            currentBusinessTypes = dataManager.getBusinessTypes();
-            employees = dataManager.getEmployees();
-            console.log('フォールバック従業員データ:', employees);
-            
-            renderBusinessTypeTabs();
-            
-            if (currentBusinessTypes.length > 0) {
-                selectBusinessType(currentBusinessTypes[0].code);
-            }
-            
-            alert('従業員データの取得に失敗しました。ローカルデータを使用します。');
+            showError('データの取得に失敗しました。ページをリロードしてください。');
         }
     }
     
@@ -254,8 +240,8 @@ $(document).ready(function() {
         cleanupOrdersForDeletedEmployees();
         
         try {
-            const dataManager = new DataManager();
-            dataManager.saveEmployeeOrders(currentOrders);
+            // API経由で保存
+            await apiClient.saveEmployeeOrders(currentBusinessType, currentOrders[currentBusinessType]);
             showSuccess('従業員並び順を保存しました。');
         } catch (error) {
             console.error('並び順保存エラー:', error);

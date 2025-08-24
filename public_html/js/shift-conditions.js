@@ -76,16 +76,10 @@ $(document).ready(async function() {
             console.log('シフト条件: API経由でのデータ読み込み成功');
         } catch (error) {
             console.error('シフト条件取得エラー:', error);
-            // フォールバック: localStorageから読み込み
-            const saved = localStorage.getItem('shiftApp_shiftConditions');
-            if (saved) {
-                currentSettings = JSON.parse(saved);
-                console.log('シフト条件: localStorage データを使用:', currentSettings);
-            } else {
-                currentSettings = getDefaultSettings();
-                console.log('シフト条件: デフォルト設定を使用:', currentSettings);
-            }
-            showError('シフト条件の読み込みに失敗しました。ローカルデータを使用します。');
+            // デフォルト設定を使用
+            currentSettings = getDefaultSettings();
+            console.log('シフト条件: デフォルト設定を使用:', currentSettings);
+            showError('シフト条件の読み込みに失敗しました。デフォルト設定を使用します。');
         }
         
         // フォームに値を設定
@@ -245,7 +239,6 @@ $(document).ready(async function() {
             await apiClient.saveShiftConditions(currentSettings);
             
             // 後方互換性のためローカルストレージにも保存
-            localStorage.setItem('shiftApp_shiftConditions', JSON.stringify(currentSettings));
             
             showSuccess('設定を保存しました。');
             

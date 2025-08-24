@@ -241,11 +241,32 @@ class ApiClient {
 
     // 会社マスタ
     async getCompanyInfo() {
-        return this.get('/company.php');
+        return this.get('/company-info-api.php');
     }
 
     async saveCompanyInfo(companyInfo) {
-        return this.post('/company.php', companyInfo);
+        return this.post('/company-info-api.php', companyInfo);
+    }
+    
+    // シフト条件
+    async getShiftConditions() {
+        return this.get('/shift-conditions-api.php');
+    }
+    
+    async saveShiftConditions(conditions) {
+        return this.post('/shift-conditions-api.php', conditions);
+    }
+    
+    // 従業員並び順
+    async getEmployeeOrders() {
+        return this.get('/employee-orders-api.php');
+    }
+    
+    async saveEmployeeOrders(businessTypeCode, orders) {
+        return this.post('/employee-orders-api.php', {
+            businessTypeCode: businessTypeCode,
+            orders: orders
+        });
     }
 
     // 業務区分マスタ
