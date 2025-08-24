@@ -254,8 +254,8 @@ $(document).ready(function() {
         currentOrders[currentBusinessType] = order;
     }
     
-    // 従業員並び順を保存（localStorage）
-    function saveEmployeeOrder() {
+    // 従業員並び順を保存（API）
+    async function saveEmployeeOrder() {
         // 現在の並び順を保存
         saveCurrentOrder();
         
