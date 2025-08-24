@@ -292,11 +292,13 @@ $(document).ready(function() {
         
         // 従業員を並び順マスタに従って並び替え
         const orderedEmployees = await getOrderedEmployees(employees);
+        console.log('shift-create: renderShiftTable - 並び替え後の従業員順序:', orderedEmployees.map(emp => emp.name));
         
         // ヘッダー行（従業員名）
         tableHtml += '<thead><tr><th style="min-width: 120px;">日付・行事</th><th style="min-width: 100px;">備考</th>';
-        orderedEmployees.forEach(employee => {
+        orderedEmployees.forEach((employee, index) => {
             tableHtml += `<th style="min-width: 80px;">${employee.name}</th>`;
+            console.log(`shift-create: ヘッダー${index + 1}: ${employee.name}`);
         });
         tableHtml += '</tr></thead><tbody>';
         
@@ -1217,29 +1219,43 @@ $(document).ready(function() {
     // 従業員を統一並び順マスタに従って並び替え
     async function getOrderedEmployees(employees) {
         try {
+            console.log('shift-create: getOrderedEmployees開始');
+            console.log('shift-create: 入力従業員数:', employees.length);
+            
             // APIから最新の並び順を取得
             const employeeOrders = await apiClient.getEmployeeOrders();
+            console.log('shift-create: 取得した並び順データ:', employeeOrders);
+            
             const orderedEmployees = [];
             const usedEmployees = new Set();
             
             // 統一並び順がある場合は使用
             if (employeeOrders && employeeOrders.unified && Array.isArray(employeeOrders.unified)) {
+                console.log('shift-create: 統一並び順を使用:', employeeOrders.unified);
+                
                 employeeOrders.unified.forEach(empCode => {
                     const employee = employees.find(emp => emp.code === empCode);
                     if (employee && !usedEmployees.has(empCode)) {
                         orderedEmployees.push(employee);
                         usedEmployees.add(empCode);
+                        console.log(`shift-create: 並び順追加: ${empCode} -> ${employee.name}`);
+                    } else {
+                        console.log(`shift-create: 従業員が見つからないかすでに追加済み: ${empCode}`);
                     }
                 });
+            } else {
+                console.log('shift-create: 統一並び順が見つかりません、デフォルト順序を使用');
             }
             
             // 並び順が設定されていない従業員をデフォルト順序で追加
             employees.forEach(employee => {
                 if (!usedEmployees.has(employee.code)) {
                     orderedEmployees.push(employee);
+                    console.log(`shift-create: デフォルト追加: ${employee.code} -> ${employee.name}`);
                 }
             });
             
+            console.log('shift-create: 最終並び順:', orderedEmployees.map(emp => `${emp.code}:${emp.name}`));
             return orderedEmployees;
         } catch (error) {
             console.error('従業員並び順取得エラー:', error);
