@@ -31,15 +31,8 @@
             <div style="margin-bottom: 20px;">
                 <p style="color: #666; font-size: 14px;">
                     シフト作成・編集画面での従業員の表示順序を設定できます。<br>
-                    メイン業務区分ごとに並び順を設定し、ドラッグ&ドロップで順序を変更できます。
+                    全従業員を統一した順序で並び替え、ドラッグ&ドロップで順序を変更できます。
                 </p>
-            </div>
-
-            <!-- 業務区分タブ -->
-            <div class="business-type-tabs" style="margin-bottom: 30px;">
-                <div id="business-type-tabs" style="display: flex; gap: 10px; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px;">
-                    <!-- 業務区分タブはJavaScriptで生成 -->
-                </div>
             </div>
 
             <!-- 従業員リスト -->
@@ -58,18 +51,17 @@
             <div style="font-size: 14px; color: #555; line-height: 1.8;">
                 <h4>並び順設定の仕組み</h4>
                 <ul>
-                    <li><strong>業務区分別設定：</strong> メイン業務区分ごとに従業員の並び順を設定</li>
+                    <li><strong>統一並び順：</strong> 全従業員を一つのリストで管理</li>
                     <li><strong>ドラッグ&ドロップ：</strong> 従業員名をドラッグして順序を変更</li>
-                    <li><strong>自動反映：</strong> シフト作成・編集画面の従業員列順序に反映</li>
-                    <li><strong>デフォルト順序：</strong> 従業員コード順 → 従業員名順</li>
+                    <li><strong>自動反映：</strong> シフト作成・編集・閲覧画面の従業員列順序に反映</li>
+                    <li><strong>デフォルト順序：</strong> 従業員コード順</li>
                 </ul>
 
                 <h4>使用方法</h4>
                 <ol>
-                    <li>上部のタブから業務区分を選択</li>
                     <li>従業員名をドラッグ&ドロップで並び替え</li>
                     <li>「並び順を保存」ボタンをクリック</li>
-                    <li>シフト作成・編集画面で設定した順序で表示される</li>
+                    <li>シフト作成・編集・閲覧画面で設定した順序で表示される</li>
                 </ol>
             </div>
         </div>

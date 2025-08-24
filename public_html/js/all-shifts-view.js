@@ -227,27 +227,23 @@ $(document).ready(function() {
         $errorDiv.show();
     }
     
-    // 従業員を並び順マスタに従って並び替え
+    // 従業員を統一並び順マスタに従って並び替え
     function getOrderedEmployees(employees) {
         try {
             const employeeOrders = dataManager.getEmployeeOrders();
-            const businessTypes = dataManager.getBusinessTypes();
             const orderedEmployees = [];
             const usedEmployees = new Set();
             
-            // 各業務区分の順序で従業員を追加
-            businessTypes.forEach(businessType => {
-                const order = employeeOrders[businessType.code];
-                if (order && Array.isArray(order)) {
-                    order.forEach(empCode => {
-                        const employee = employees.find(emp => emp.code === empCode);
-                        if (employee && !usedEmployees.has(empCode)) {
-                            orderedEmployees.push(employee);
-                            usedEmployees.add(empCode);
-                        }
-                    });
-                }
-            });
+            // 統一並び順がある場合は使用
+            if (employeeOrders && employeeOrders.unified && Array.isArray(employeeOrders.unified)) {
+                employeeOrders.unified.forEach(empCode => {
+                    const employee = employees.find(emp => emp.code === empCode);
+                    if (employee && !usedEmployees.has(empCode)) {
+                        orderedEmployees.push(employee);
+                        usedEmployees.add(empCode);
+                    }
+                });
+            }
             
             // 並び順が設定されていない従業員をデフォルト順序で追加
             employees.forEach(employee => {

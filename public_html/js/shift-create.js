@@ -67,6 +67,11 @@ $(document).ready(function() {
         openPrintPreview();
     });
     
+    // Excelエクスポート
+    $('#excel-export-btn').on('click', function() {
+        exportToExcel();
+    });
+    
     // 備考保存
     $('#save-notes-btn').on('click', function() {
         saveNotes();
@@ -1209,27 +1214,23 @@ $(document).ready(function() {
         return hours * 60 + minutes;
     }
     
-    // 従業員を並び順マスタに従って並び替え
+    // 従業員を統一並び順マスタに従って並び替え
     function getOrderedEmployees(employees) {
         try {
             const employeeOrders = dataManager.getEmployeeOrders();
-            const businessTypes = dataManager.getBusinessTypes();
             const orderedEmployees = [];
             const usedEmployees = new Set();
             
-            // 各業務区分の順序で従業員を追加
-            businessTypes.forEach(businessType => {
-                const order = employeeOrders[businessType.code];
-                if (order && Array.isArray(order)) {
-                    order.forEach(empCode => {
-                        const employee = employees.find(emp => emp.code === empCode);
-                        if (employee && !usedEmployees.has(empCode)) {
-                            orderedEmployees.push(employee);
-                            usedEmployees.add(empCode);
-                        }
-                    });
-                }
-            });
+            // 統一並び順がある場合は使用
+            if (employeeOrders && employeeOrders.unified && Array.isArray(employeeOrders.unified)) {
+                employeeOrders.unified.forEach(empCode => {
+                    const employee = employees.find(emp => emp.code === empCode);
+                    if (employee && !usedEmployees.has(empCode)) {
+                        orderedEmployees.push(employee);
+                        usedEmployees.add(empCode);
+                    }
+                });
+            }
             
             // 並び順が設定されていない従業員をデフォルト順序で追加
             employees.forEach(employee => {
@@ -1444,6 +1445,81 @@ $(document).ready(function() {
     // 印刷プレビューを開く
     function openPrintPreview() {
         window.print();
+    }
+    
+    // Excelエクスポート機能
+    function exportToExcel() {
+        try {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const orderedEmployees = getOrderedEmployees(employees);
+            
+            // ワークブックとワークシートを作成
+            const wb = XLSX.utils.book_new();
+            const wsData = [];
+            
+            // ヘッダー行を作成
+            const headerRow = ['従業員'];
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month - 1, day);
+                const dayName = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
+                headerRow.push(`${day}日(${dayName})`);
+            }
+            wsData.push(headerRow);
+            
+            // 各従業員のデータ行を作成
+            orderedEmployees.forEach(employee => {
+                const row = [employee.name];
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateString = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                    const shift = currentShift[employee.code] ? currentShift[employee.code][dateString] : '';
+                    
+                    let cellValue = '';
+                    if (shift && shift.timeSlot && shift.timeSlot.name && shift.timeSlot.name !== '休み') {
+                        // 時間帯名から時刻を抽出
+                        const timeMatch = shift.timeSlot.name.match(/(\d{1,2}:\d{2}).*?(\d{1,2}:\d{2})/);
+                        if (timeMatch) {
+                            cellValue = `${timeMatch[1]}-${timeMatch[2]}`;
+                        } else {
+                            cellValue = shift.timeSlot.name;
+                        }
+                    } else {
+                        cellValue = '休';
+                    }
+                    
+                    row.push(cellValue);
+                }
+                
+                wsData.push(row);
+            });
+            
+            // ワークシートを作成
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            
+            // 列幅を設定
+            const colWidths = [{wch: 12}]; // 従業員名列
+            for (let i = 1; i <= daysInMonth; i++) {
+                colWidths.push({wch: 8}); // 日付列
+            }
+            ws['!cols'] = colWidths;
+            
+            // ワークシートをワークブックに追加
+            XLSX.utils.book_append_sheet(wb, ws, `${year}年${month}月シフト`);
+            
+            // ファイル名を生成
+            const filename = `シフト_${year}年${month.toString().padStart(2, '0')}月.xlsx`;
+            
+            // ファイルを書き出し
+            XLSX.writeFile(wb, filename);
+            
+            showMessage('Excelファイルをエクスポートしました。', 'success');
+            
+        } catch (error) {
+            console.error('Excelエクスポートエラー:', error);
+            showMessage('Excelエクスポートに失敗しました。', 'error');
+        }
     }
     
     // 印刷用HTML生成

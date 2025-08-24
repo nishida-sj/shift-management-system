@@ -1,14 +1,11 @@
 $(document).ready(function() {
-    let currentBusinessTypes = [];
     let employees = [];
-    let currentBusinessType = null;
-    let currentOrders = {};
+    let currentOrder = [];
     let sortableInstance = null;
     
     console.log('従業員並び順: ページ読み込み開始');
     console.log('apiClient利用可能:', typeof apiClient !== 'undefined');
     console.log('dataConverter利用可能:', typeof dataConverter !== 'undefined');
-    console.log('DataManager利用可能:', typeof DataManager !== 'undefined');
     
     // 初期表示
     loadData();
@@ -20,18 +17,14 @@ $(document).ready(function() {
     
     // リセットボタン
     $('#reset-order-btn').on('click', function() {
-        if (confirm('現在の業務区分の並び順をデフォルトに戻しますか？')) {
-            resetCurrentBusinessTypeOrder();
+        if (confirm('従業員の並び順をデフォルトに戻しますか？')) {
+            resetEmployeeOrder();
         }
     });
     
     // データを読み込み
     async function loadData() {
         try {
-            // APIからデータを取得
-            currentBusinessTypes = await apiClient.getBusinessTypes();
-            currentOrders = await apiClient.getEmployeeOrders();
-            
             // APIから現在有効な従業員を取得
             console.log('従業員並び順: API呼び出し開始');
             const apiEmployees = await apiClient.getEmployees();
@@ -52,257 +45,163 @@ $(document).ready(function() {
             }
             
             console.log('従業員並び順: 変換後データ:', employees);
-            console.log('従業員並び順: 取得した従業員一覧:');
-            employees.forEach(emp => {
-                console.log(`  - ${emp.code}: ${emp.name} (業務区分:`, emp.businessTypes, ')');
-            });
             
-            renderBusinessTypeTabs();
-            
-            // 最初の業務区分を選択
-            if (currentBusinessTypes.length > 0) {
-                selectBusinessType(currentBusinessTypes[0].code);
+            // 現在の並び順を取得（統一した並び順）
+            try {
+                const orderResponse = await apiClient.getEmployeeOrders();
+                if (orderResponse && orderResponse.unified) {
+                    currentOrder = orderResponse.unified;
+                } else {
+                    // デフォルト順序（従業員コード順）
+                    currentOrder = employees.map(emp => emp.code).sort();
+                }
+            } catch (error) {
+                console.warn('並び順取得エラー、デフォルト順序を使用:', error);
+                currentOrder = employees.map(emp => emp.code).sort();
             }
+            
+            renderEmployeeList();
+            
         } catch (error) {
             console.error('データ取得エラー:', error);
             showError('データの取得に失敗しました。ページをリロードしてください。');
         }
     }
     
-    // 業務区分タブを描画
-    function renderBusinessTypeTabs() {
-        let tabsHtml = '';
+    // 従業員リストを描画（統一リスト）
+    function renderEmployeeList() {
+        console.log('従業員リスト描画開始');
+        console.log('現在の並び順:', currentOrder);
         
-        currentBusinessTypes.forEach(businessType => {
-            const activeClass = currentBusinessType === businessType.code ? 'active' : '';
-            tabsHtml += `
-                <button class="business-type-tab ${activeClass}" data-business-type="${businessType.code}"
-                        style="padding: 10px 20px; border: 1px solid #ddd; background: ${activeClass ? '#3498db' : '#f8f9fa'}; 
-                               color: ${activeClass ? 'white' : '#333'}; border-radius: 5px; cursor: pointer;">
-                    ${businessType.name}
-                </button>
-            `;
+        // 現在の並び順に従って従業員を並べる
+        const orderedEmployees = [];
+        const usedEmployees = new Set();
+        
+        // 並び順リストに従って従業員を追加
+        currentOrder.forEach(empCode => {
+            const employee = employees.find(emp => emp.code === empCode);
+            if (employee && !usedEmployees.has(empCode)) {
+                orderedEmployees.push(employee);
+                usedEmployees.add(empCode);
+            }
         });
         
-        $('#business-type-tabs').html(tabsHtml);
-        
-        // タブクリックイベント
-        $('.business-type-tab').on('click', function() {
-            const businessTypeCode = $(this).data('business-type');
-            selectBusinessType(businessTypeCode);
+        // 並び順に含まれていない従業員を最後に追加
+        employees.forEach(employee => {
+            if (!usedEmployees.has(employee.code)) {
+                orderedEmployees.push(employee);
+            }
         });
-    }
-    
-    // 業務区分を選択
-    function selectBusinessType(businessTypeCode) {
-        // 現在の並び順を保存
-        if (currentBusinessType && sortableInstance) {
-            saveCurrentOrder();
-        }
-        
-        currentBusinessType = businessTypeCode;
-        
-        // タブの表示を更新
-        $('.business-type-tab').removeClass('active').css({
-            'background': '#f8f9fa',
-            'color': '#333'
-        });
-        $(`.business-type-tab[data-business-type="${businessTypeCode}"]`).addClass('active').css({
-            'background': '#3498db',
-            'color': 'white'
-        });
-        
-        renderEmployeeList(businessTypeCode);
-    }
-    
-    // 従業員リストを描画
-    function renderEmployeeList(businessTypeCode) {
-        // 該当業務区分をメインとする従業員を取得
-        console.log('フィルタリング対象businessTypeCode:', businessTypeCode);
-        console.log('フィルタリング前従業員データ:', employees);
-        
-        const mainEmployees = employees.filter(emp => {
-            const hasBusinessType = emp.businessTypes && emp.businessTypes.some(bt => {
-                console.log(`従業員${emp.name}の業務区分チェック:`, bt.code, 'vs', businessTypeCode, 'isMain:', bt.isMain);
-                return bt.code === businessTypeCode && bt.isMain;
-            });
-            console.log(`従業員${emp.name}は${businessTypeCode}でフィルタ:`, hasBusinessType);
-            return hasBusinessType;
-        });
-        
-        console.log(`${businessTypeCode}でフィルタされた従業員:`, mainEmployees);
-        
-        if (mainEmployees.length === 0) {
-            $('#employee-order-container').html(`
-                <div style="text-align: center; padding: 40px; color: #666;">
-                    <h4>該当する従業員がいません</h4>
-                    <p>「${getBusinessTypeName(businessTypeCode)}」をメイン業務とする従業員が登録されていません。</p>
-                </div>
-            `);
-            return;
-        }
-        
-        // 保存済みの並び順を取得、なければデフォルト順序
-        let orderedEmployees;
-        if (currentOrders[businessTypeCode]) {
-            // 保存済み順序で並び替え
-            orderedEmployees = [];
-            currentOrders[businessTypeCode].forEach(empCode => {
-                const emp = mainEmployees.find(e => e.code === empCode);
-                if (emp) orderedEmployees.push(emp);
-            });
-            // 新しく追加された従業員があれば末尾に追加
-            mainEmployees.forEach(emp => {
-                if (!orderedEmployees.find(e => e.code === emp.code)) {
-                    orderedEmployees.push(emp);
-                }
-            });
-        } else {
-            // デフォルト順序（従業員コード順）
-            orderedEmployees = [...mainEmployees].sort((a, b) => a.code.localeCompare(b.code));
-        }
         
         let listHtml = `
             <div style="margin-bottom: 20px;">
-                <h3 style="color: #2c3e50;">${getBusinessTypeName(businessTypeCode)} - 従業員並び順</h3>
-                <p style="color: #666; font-size: 14px; margin-top: 5px;">
-                    ドラッグ&ドロップで順序を変更できます（${orderedEmployees.length}名）
+                <h4 style="color: #2c3e50; margin-bottom: 15px;">全従業員並び順</h4>
+                <p style="color: #666; font-size: 12px;">
+                    ドラッグ&ドロップで順序を変更できます。この順序はすべてのシフト画面で使用されます。
                 </p>
             </div>
-            <ul id="sortable-employee-list" style="list-style: none; padding: 0; margin: 0;">
+            <div id="employee-sortable-list" style="border: 2px solid #ecf0f1; border-radius: 8px; padding: 20px; background: #fafbfc;">
         `;
         
         orderedEmployees.forEach((employee, index) => {
-            const subBusinessTypes = employee.businessTypes
-                .filter(bt => !bt.isMain)
-                .map(bt => getBusinessTypeName(bt.code))
-                .join(', ');
-                
+            const businessType = employee.businessTypes?.[0]?.code === 'office' ? '事務' : 
+                               employee.businessTypes?.[0]?.code === 'cooking' ? '調理' : '不明';
+            
             listHtml += `
-                <li class="employee-item" data-employee-code="${employee.code}" 
-                    style="background: white; border: 1px solid #ddd; border-radius: 5px; padding: 15px; 
-                           margin-bottom: 10px; cursor: move; transition: all 0.2s;">
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display: flex; align-items: center;">
-                            <div class="drag-handle" style="margin-right: 15px; color: #bdc3c7; font-size: 18px;">
-                                ⋮⋮
-                            </div>
-                            <div>
-                                <div style="font-weight: bold; font-size: 16px; color: #2c3e50;">
-                                    ${index + 1}. ${employee.name}
-                                </div>
-                                <div style="font-size: 12px; color: #7f8c8d; margin-top: 2px;">
-                                    ID: ${employee.code}
-                                    ${subBusinessTypes ? ` | サブ業務: ${subBusinessTypes}` : ''}
-                                </div>
-                            </div>
+                <div class="employee-item" data-employee-code="${employee.code}" 
+                     style="display: flex; align-items: center; padding: 12px; margin-bottom: 8px; 
+                            background: white; border: 1px solid #ddd; border-radius: 6px; cursor: move;">
+                    <div style="width: 30px; height: 30px; background: #3498db; color: white; 
+                               border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+                               font-size: 12px; font-weight: bold; margin-right: 15px;">
+                        ${index + 1}
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; color: #2c3e50; margin-bottom: 2px;">
+                            ${employee.name}
                         </div>
-                        <div style="color: #27ae60; font-weight: bold;">
-                            メイン
+                        <div style="font-size: 12px; color: #666;">
+                            コード: ${employee.code} | 業務区分: ${businessType}
                         </div>
                     </div>
-                </li>
+                    <div style="color: #95a5a6; font-size: 18px;">
+                        ⋮⋮
+                    </div>
+                </div>
             `;
         });
         
-        listHtml += '</ul>';
+        listHtml += '</div>';
+        
         $('#employee-order-container').html(listHtml);
         
         // Sortable.jsを初期化
-        initializeSortable();
-    }
-    
-    // Sortable.jsを初期化
-    function initializeSortable() {
-        const el = document.getElementById('sortable-employee-list');
-        if (el) {
-            if (sortableInstance) {
-                sortableInstance.destroy();
-            }
-            
-            sortableInstance = Sortable.create(el, {
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                chosenClass: 'sortable-chosen',
-                dragClass: 'sortable-drag',
-                handle: '.drag-handle',
-                onEnd: function(evt) {
-                    updateOrderNumbers();
-                }
-            });
+        if (sortableInstance) {
+            sortableInstance.destroy();
         }
+        
+        sortableInstance = Sortable.create(document.getElementById('employee-sortable-list'), {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            dragClass: 'sortable-drag',
+            onEnd: function() {
+                updateOrderNumbers();
+            }
+        });
+        
+        console.log('従業員リスト描画完了');
     }
     
     // 順序番号を更新
     function updateOrderNumbers() {
-        $('#sortable-employee-list .employee-item').each(function(index) {
-            $(this).find('div[style*="font-weight: bold"]').html(
-                `${index + 1}. ${$(this).find('div[style*="font-weight: bold"]').text().replace(/^\d+\.\s*/, '')}`
-            );
+        $('#employee-sortable-list .employee-item').each(function(index) {
+            $(this).find('div:first-child').text(index + 1);
         });
     }
     
-    // 現在の並び順を保存（メモリ内）
-    function saveCurrentOrder() {
-        if (!currentBusinessType) return;
-        
-        const order = [];
-        $('#sortable-employee-list .employee-item').each(function() {
-            order.push($(this).data('employee-code'));
-        });
-        
-        currentOrders[currentBusinessType] = order;
-    }
-    
-    // 従業員並び順を保存（API）
+    // 従業員並び順を保存
     async function saveEmployeeOrder() {
-        // 現在の並び順を保存
-        saveCurrentOrder();
-        
-        // 削除された従業員を並び順設定から除外
-        cleanupOrdersForDeletedEmployees();
-        
         try {
-            // API経由で保存
-            await apiClient.saveEmployeeOrders(currentBusinessType, currentOrders[currentBusinessType]);
-            showSuccess('従業員並び順を保存しました。');
+            // 現在のDOM順序から並び順を取得
+            const newOrder = [];
+            $('#employee-sortable-list .employee-item').each(function() {
+                const empCode = $(this).data('employee-code');
+                newOrder.push(empCode);
+            });
+            
+            console.log('保存する並び順:', newOrder);
+            
+            // 統一した並び順として保存
+            const orderData = {
+                unified: newOrder
+            };
+            
+            await apiClient.saveEmployeeOrders(orderData);
+            
+            currentOrder = newOrder;
+            showSuccess('従業員の並び順を保存しました。');
+            
         } catch (error) {
             console.error('並び順保存エラー:', error);
             showError('並び順の保存に失敗しました。');
         }
     }
-
-    // 削除された従業員を並び順設定から除外
-    function cleanupOrdersForDeletedEmployees() {
-        const currentEmployeeCodes = employees.map(emp => emp.code);
-        
-        Object.keys(currentOrders).forEach(businessTypeCode => {
-            currentOrders[businessTypeCode] = currentOrders[businessTypeCode].filter(empCode => 
-                currentEmployeeCodes.includes(empCode)
-            );
-        });
-    }
     
-    // 現在の業務区分の並び順をリセット
-    function resetCurrentBusinessTypeOrder() {
-        if (!currentBusinessType) return;
-        
-        // デフォルト順序で再描画
-        delete currentOrders[currentBusinessType];
-        renderEmployeeList(currentBusinessType);
-        showSuccess('並び順をデフォルトに戻しました。');
-    }
-    
-    // 業務区分名を取得
-    function getBusinessTypeName(code) {
-        const businessType = currentBusinessTypes.find(bt => bt.code === code);
-        return businessType ? businessType.name : code;
+    // デフォルト順序にリセット
+    function resetEmployeeOrder() {
+        // 従業員コード順にリセット
+        const defaultOrder = employees.map(emp => emp.code).sort();
+        currentOrder = defaultOrder;
+        renderEmployeeList();
+        showSuccess('並び順をデフォルト（従業員コード順）にリセットしました。');
     }
     
     // 成功メッセージ表示
     function showSuccess(message) {
         $('#success-message').text(message).show();
-        setTimeout(function() {
+        $('#error-message').hide();
+        setTimeout(() => {
             $('#success-message').fadeOut();
         }, 3000);
     }
@@ -310,35 +209,9 @@ $(document).ready(function() {
     // エラーメッセージ表示
     function showError(message) {
         $('#error-message').text(message).show();
-        setTimeout(function() {
+        $('#success-message').hide();
+        setTimeout(() => {
             $('#error-message').fadeOut();
         }, 5000);
     }
 });
-
-// CSSスタイルをページに追加
-$('<style>').text(`
-    .sortable-ghost {
-        opacity: 0.4;
-        background: #f8f9fa !important;
-    }
-    
-    .sortable-chosen {
-        background: #e3f2fd !important;
-        transform: scale(1.02);
-    }
-    
-    .sortable-drag {
-        background: #fff !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
-    }
-    
-    .employee-item:hover {
-        background: #f8f9fa !important;
-        border-color: #3498db !important;
-    }
-    
-    .drag-handle:hover {
-        color: #3498db !important;
-    }
-`).appendTo('head');
