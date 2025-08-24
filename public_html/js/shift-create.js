@@ -1459,21 +1459,23 @@ $(document).ready(function() {
             const wb = XLSX.utils.book_new();
             const wsData = [];
             
-            // ヘッダー行を作成
-            const headerRow = ['従業員'];
+            // ヘッダー行を作成（縦レイアウト: 日付が縦、従業員が横）
+            const headerRow = ['日付'];
+            orderedEmployees.forEach(employee => {
+                headerRow.push(employee.name);
+            });
+            wsData.push(headerRow);
+            
+            // 各日付のデータ行を作成
             for (let day = 1; day <= daysInMonth; day++) {
                 const date = new Date(year, month - 1, day);
                 const dayName = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
-                headerRow.push(`${day}日(${dayName})`);
-            }
-            wsData.push(headerRow);
-            
-            // 各従業員のデータ行を作成
-            orderedEmployees.forEach(employee => {
-                const row = [employee.name];
+                const dateString = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
                 
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const dateString = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                const row = [`${day}日(${dayName})`];
+                
+                // 各従業員のシフトを追加
+                orderedEmployees.forEach(employee => {
                     const shiftTime = currentShift[employee.code] ? currentShift[employee.code][dateString] : '';
                     
                     let cellValue = '';
@@ -1485,19 +1487,19 @@ $(document).ready(function() {
                     }
                     
                     row.push(cellValue);
-                }
+                });
                 
                 wsData.push(row);
-            });
+            }
             
             // ワークシートを作成
             const ws = XLSX.utils.aoa_to_sheet(wsData);
             
             // 列幅を設定
-            const colWidths = [{wch: 12}]; // 従業員名列
-            for (let i = 1; i <= daysInMonth; i++) {
-                colWidths.push({wch: 8}); // 日付列
-            }
+            const colWidths = [{wch: 12}]; // 日付列
+            orderedEmployees.forEach(() => {
+                colWidths.push({wch: 12}); // 各従業員列
+            });
             ws['!cols'] = colWidths;
             
             // ワークシートをワークブックに追加
@@ -1509,11 +1511,11 @@ $(document).ready(function() {
             // ファイルを書き出し
             XLSX.writeFile(wb, filename);
             
-            showMessage('Excelファイルをエクスポートしました。', 'success');
+            showSuccess('Excelファイルをエクスポートしました。');
             
         } catch (error) {
             console.error('Excelエクスポートエラー:', error);
-            showMessage('Excelエクスポートに失敗しました。', 'error');
+            showError('Excelエクスポートに失敗しました。');
         }
     }
     

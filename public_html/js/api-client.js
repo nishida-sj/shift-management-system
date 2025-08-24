@@ -262,11 +262,9 @@ class ApiClient {
         return this.get('/employee-orders-api.php');
     }
     
-    async saveEmployeeOrders(businessTypeCode, orders) {
-        return this.post('/employee-orders-api.php', {
-            businessTypeCode: businessTypeCode,
-            orders: orders
-        });
+    async saveEmployeeOrders(orderData) {
+        // 新しい統一形式または古い業務区分別形式を受け入れ
+        return this.post('/employee-orders-api.php', orderData);
     }
 
     // 業務区分マスタ
