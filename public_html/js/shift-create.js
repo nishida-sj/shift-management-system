@@ -1474,17 +1474,12 @@ $(document).ready(function() {
                 
                 for (let day = 1; day <= daysInMonth; day++) {
                     const dateString = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                    const shift = currentShift[employee.code] ? currentShift[employee.code][dateString] : '';
+                    const shiftTime = currentShift[employee.code] ? currentShift[employee.code][dateString] : '';
                     
                     let cellValue = '';
-                    if (shift && shift.timeSlot && shift.timeSlot.name && shift.timeSlot.name !== '休み') {
-                        // 時間帯名から時刻を抽出
-                        const timeMatch = shift.timeSlot.name.match(/(\d{1,2}:\d{2}).*?(\d{1,2}:\d{2})/);
-                        if (timeMatch) {
-                            cellValue = `${timeMatch[1]}-${timeMatch[2]}`;
-                        } else {
-                            cellValue = shift.timeSlot.name;
-                        }
+                    if (shiftTime && shiftTime.trim() !== '') {
+                        // currentShiftは "09:00-17:00" 形式の文字列
+                        cellValue = shiftTime;
                     } else {
                         cellValue = '休';
                     }
