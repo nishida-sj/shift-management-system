@@ -44,21 +44,39 @@ $(document).ready(function() {
             employees = apiEmployees.map(emp => dataConverter.employeeFromApi(emp));
             
             // 確定シフトデータ読み込み
-            const shiftResponse = await fetch(`/api/shifts.php?type=confirmed&year=${year}&month=${month}`);
-            if (shiftResponse.ok) {
-                confirmedShifts = await shiftResponse.json();
-            } else {
-                confirmedShifts = {};
+            const apiShifts = await apiClient.getConfirmedShifts(year, month).catch(err => {
+                console.error('確定シフト取得エラー:', err);
+                return [];
+            });
+            
+            // 確定シフトデータをローカル形式に変換
+            confirmedShifts = {};
+            if (apiShifts && Array.isArray(apiShifts)) {
+                console.log(`${apiShifts.length}件のシフトデータを処理中`);
+                apiShifts.forEach(shift => {
+                    // ネストした構造で格納: confirmedShifts[employeeCode][dateString] = shiftInfo
+                    if (!confirmedShifts[shift.employee_code]) {
+                        confirmedShifts[shift.employee_code] = {};
+                    }
+                    
+                    // 日付文字列を生成 (YYYY-MM-DD形式)
+                    const dateString = `${shift.year}-${String(shift.month).padStart(2, '0')}-${String(shift.day).padStart(2, '0')}`;
+                    
+                    confirmedShifts[shift.employee_code][dateString] = {
+                        time_start: shift.time_start,
+                        time_end: shift.time_end,
+                        is_violation: shift.is_violation,
+                        business_type: shift.business_type
+                    };
+                });
             }
             
             // シフト状態読み込み
-            const statusResponse = await fetch(`/api/shifts.php?type=status&year=${year}&month=${month}`);
-            if (statusResponse.ok) {
-                const statusData = await statusResponse.json();
-                shiftStatus = statusData.is_confirmed ? 'confirmed' : 'draft';
-            } else {
-                shiftStatus = 'draft';
-            }
+            const apiStatus = await apiClient.getShiftStatus(year, month).catch(err => {
+                console.error('シフト状態取得エラー:', err);
+                return { is_confirmed: 0 };
+            });
+            shiftStatus = apiStatus.is_confirmed ? 'confirmed' : 'draft';
             
         } catch (error) {
             console.error('データ読み込みエラー:', error);

@@ -14,17 +14,8 @@
         <h1>シフト管理システム - シフト作成・編集</h1>
     </div>
 
-    <div class="container" style="display: flex; gap: 20px;">
-        <!-- サイドバー -->
-        <div id="shift-requests-sidebar" style="width: 300px; flex-shrink: 0; background: #f8f9fa; border-radius: 5px; padding: 20px; height: fit-content; max-height: 80vh; overflow-y: auto;">
-            <h3 style="color: #2c3e50; margin-top: 0; margin-bottom: 15px; font-size: 18px;">シフト希望</h3>
-            <div id="shift-requests-content">
-                <p style="color: #666; text-align: center; padding: 20px;">読み込み中...</p>
-            </div>
-        </div>
-        
-        <!-- メインコンテンツ -->
-        <div class="card" style="flex: 1;">
+    <div class="container">
+        <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="color: #2c3e50;">シフト作成・編集</h2>
                 <a href="admin.html" class="btn btn-primary">戻る</a>
@@ -74,9 +65,22 @@
                 </div>
             </div>
 
-            <!-- シフト表 -->
-            <div id="shift-table-container" style="overflow-x: auto;">
-                <!-- シフト表はJavaScriptで動的生成 -->
+            <!-- メインコンテンツエリア -->
+            <div style="display: flex; gap: 20px;">
+                <!-- シフト表 -->
+                <div style="flex: 1;">
+                    <div id="shift-table-container" style="overflow-x: auto;">
+                        <!-- シフト表はJavaScriptで動的生成 -->
+                    </div>
+                </div>
+                
+                <!-- サイドバー -->
+                <div id="shift-requests-sidebar" style="width: 300px; flex-shrink: 0; background: #f8f9fa; border-radius: 5px; padding: 20px; height: fit-content; max-height: 60vh; overflow-y: auto;">
+                    <h3 style="color: #2c3e50; margin-top: 0; margin-bottom: 15px; font-size: 18px;">シフト希望</h3>
+                    <div id="shift-requests-content">
+                        <p style="color: #666; text-align: center; padding: 20px;">読み込み中...</p>
+                    </div>
+                </div>
             </div>
 
             <!-- 備考欄 -->
