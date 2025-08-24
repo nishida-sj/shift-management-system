@@ -48,7 +48,7 @@
                 <button id="unconfirm-shift-btn" class="btn btn-secondary" style="margin-right: 10px; display: none;">
                     確定解除
                 </button>
-                <button id="print-preview-btn" class="btn btn-primary" style="display: none;">
+                <button id="print-preview-btn" class="btn btn-primary">
                     印刷プレビュー
                 </button>
             </div>
@@ -152,5 +152,101 @@
     </div>
 
     <script src="js/shift-create.js"></script>
+    
+    <style>
+    @media print {
+        /* 印刷時のスタイル設定 */
+        body {
+            font-size: 10px !important;
+            margin: 5mm !important;
+        }
+        
+        .header, .btn, #shift-status, #success-message, #error-message,
+        #attendance-stats, #shift-requests-sidebar, #notes-section,
+        .card h3, .card div[style*="font-size: 14px"] {
+            display: none !important;
+        }
+        
+        .container {
+            max-width: none !important;
+            padding: 0 !important;
+        }
+        
+        .card {
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        .shift-table {
+            font-size: 8px !important;
+            border-collapse: collapse !important;
+            width: 100% !important;
+            margin: 0 !important;
+        }
+        
+        .shift-table th, .shift-table td {
+            padding: 2px 1px !important;
+            border: 1px solid #000 !important;
+            font-size: 8px !important;
+            line-height: 1.1 !important;
+        }
+        
+        .shift-table th {
+            background-color: #f5f5f5 !important;
+            font-weight: bold !important;
+        }
+        
+        /* 従業員名列を固定幅に */
+        .shift-table th:first-child,
+        .shift-table td:first-child {
+            width: 60px !important;
+            max-width: 60px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        
+        /* 日付セルを小さく */
+        .shift-table th:not(:first-child),
+        .shift-table td:not(:first-child) {
+            width: 25px !important;
+            max-width: 25px !important;
+            font-size: 7px !important;
+        }
+        
+        /* ページブレークの調整 */
+        .shift-table {
+            page-break-inside: avoid !important;
+        }
+        
+        /* 色設定を印刷用に調整 */
+        .shift-table td[style*="background-color: #d4edda"] {
+            background-color: #e8e8e8 !important;
+        }
+        
+        .shift-table td[style*="background-color: #f8d7da"] {
+            background-color: #d0d0d0 !important;
+        }
+        
+        .shift-table th[style*="background-color: #ffeaea"],
+        .shift-table td[style*="background-color: #ffeaea"] {
+            background-color: #f0f0f0 !important;
+        }
+        
+        /* 月タイトルのみ表示 */
+        h3#current-month {
+            display: block !important;
+            font-size: 14px !important;
+            margin: 0 0 10px 0 !important;
+            text-align: center !important;
+        }
+        
+        /* 他のh3要素は非表示 */
+        h3:not(#current-month) {
+            display: none !important;
+        }
+    }
+    </style>
 </body>
 </html>

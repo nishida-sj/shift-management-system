@@ -3,6 +3,7 @@ $(document).ready(function() {
     let employees = [];
     let confirmedShifts = {};
     let shiftStatus = 'draft';
+    let monthlyEvents = {};
     
     // 初期表示
     async function initialize() {
@@ -78,13 +79,25 @@ $(document).ready(function() {
             });
             shiftStatus = apiStatus.is_confirmed ? 'confirmed' : 'draft';
             
+            // 月間行事予定読み込み
+            const eventsResponse = await fetch(`/api/monthly-events.php?year=${year}&month=${month}`).catch(err => {
+                console.error('月間行事予定取得エラー:', err);
+                return { ok: false };
+            });
+            
+            if (eventsResponse.ok) {
+                monthlyEvents = await eventsResponse.json();
+            } else {
+                monthlyEvents = {};
+            }
+            
         } catch (error) {
             console.error('データ読み込みエラー:', error);
             showError('データの読み込みに失敗しました。');
         }
     }
     
-    // シフト表を描画
+    // シフト表を描画（縦：日付・行事、横：従業員名）
     function renderShiftTable() {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
@@ -94,44 +107,48 @@ $(document).ready(function() {
             <table class="shift-table table table-bordered">
                 <thead>
                     <tr style="background-color: #f8f9fa;">
-                        <th style="width: 120px; position: sticky; left: 0; background: #f8f9fa; z-index: 10;">従業員</th>
+                        <th style="width: 100px; position: sticky; left: 0; background: #f8f9fa; z-index: 10;">日付・行事</th>
         `;
         
-        // 日付ヘッダー
+        // 従業員名ヘッダー
+        employees.forEach(employee => {
+            tableHtml += `
+                <th style="width: 80px; text-align: center; font-size: 11px;">
+                    ${employee.name}<br>
+                    <small style="color: #666;">${employee.businessTypes?.[0]?.code || ''}</small>
+                </th>
+            `;
+        });
+        
+        tableHtml += '</tr></thead><tbody>';
+        
+        // 日付行
         for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(year, month - 1, day);
             const dayName = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
             const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+            const dateKey = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            
+            // 行事名を取得
+            const eventInfo = monthlyEvents[dateKey];
+            const eventName = eventInfo ? eventInfo.event_name : '';
+            
+            let rowStyle = isWeekend ? 'background-color: #ffeaea;' : '';
             
             tableHtml += `
-                <th style="width: 80px; text-align: center; ${isWeekend ? 'background-color: #ffeaea;' : ''}">
-                    ${day}<br>
-                    <small style="color: #666;">${dayName}</small>
-                </th>
-            `;
-        }
-        
-        tableHtml += '</tr></thead><tbody>';
-        
-        // 従業員行
-        employees.forEach(employee => {
-            tableHtml += `
-                <tr>
-                    <td style="position: sticky; left: 0; background: white; z-index: 5; font-weight: bold; padding: 8px;">
-                        ${employee.name}<br>
-                        <small style="color: #666;">${employee.businessTypes?.[0]?.code || ''}</small>
+                <tr style="${rowStyle}">
+                    <td style="position: sticky; left: 0; background: ${isWeekend ? '#ffeaea' : 'white'}; z-index: 5; font-weight: bold; padding: 8px; font-size: 12px;">
+                        ${day}日(${dayName})<br>
+                        ${eventName ? `<small style="color: #007bff;">${eventName}</small>` : ''}
                     </td>
             `;
             
-            // 日付セル
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dateKey = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            // 各従業員のシフトセル
+            employees.forEach(employee => {
                 const shift = confirmedShifts[employee.code]?.[dateKey];
-                const date = new Date(year, month - 1, day);
-                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                 
                 let cellContent = '';
-                let cellStyle = 'text-align: center; padding: 4px; font-size: 12px;';
+                let cellStyle = 'text-align: center; padding: 4px; font-size: 11px;';
                 
                 if (isWeekend) {
                     cellStyle += ' background-color: #ffeaea;';
@@ -152,10 +169,10 @@ $(document).ready(function() {
                 }
                 
                 tableHtml += `<td style="${cellStyle}">${cellContent}</td>`;
-            }
+            });
             
             tableHtml += '</tr>';
-        });
+        }
         
         tableHtml += '</tbody></table>';
         

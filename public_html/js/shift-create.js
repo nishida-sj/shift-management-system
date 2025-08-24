@@ -1443,11 +1443,7 @@ $(document).ready(function() {
     
     // 印刷プレビューを開く
     function openPrintPreview() {
-        const printWindow = window.open('', '_blank');
-        const printHtml = generatePrintHtml();
-        printWindow.document.write(printHtml);
-        printWindow.document.close();
-        printWindow.print();
+        window.print();
     }
     
     // 印刷用HTML生成
