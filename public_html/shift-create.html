@@ -155,10 +155,17 @@
     
     <style>
     @media print {
-        /* 印刷時のスタイル設定 */
+        /* 印刷時のスタイル設定 - A4縦1ページに収める */
+        @page {
+            size: A4;
+            margin: 10mm 5mm 5mm 5mm;
+        }
+        
         body {
-            font-size: 10px !important;
-            margin: 5mm !important;
+            font-size: 8px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
         }
         
         .header, .btn, #shift-status, #success-message, #error-message,
@@ -170,6 +177,7 @@
         .container {
             max-width: none !important;
             padding: 0 !important;
+            margin: 0 !important;
         }
         
         .card {
@@ -179,48 +187,81 @@
             box-shadow: none !important;
         }
         
+        /* 月タイトルのみ表示 */
+        h3#current-month {
+            display: block !important;
+            font-size: 12px !important;
+            margin: 0 0 3px 0 !important;
+            text-align: center !important;
+            font-weight: bold !important;
+        }
+        
+        /* 他のh3要素は非表示 */
+        h3:not(#current-month) {
+            display: none !important;
+        }
+        
         .shift-table {
-            font-size: 8px !important;
+            font-size: 6px !important;
             border-collapse: collapse !important;
             width: 100% !important;
             margin: 0 !important;
+            table-layout: fixed !important;
         }
         
         .shift-table th, .shift-table td {
-            padding: 2px 1px !important;
-            border: 1px solid #000 !important;
-            font-size: 8px !important;
-            line-height: 1.1 !important;
+            padding: 1px !important;
+            border: 0.5px solid #000 !important;
+            font-size: 6px !important;
+            line-height: 1 !important;
+            vertical-align: top !important;
+            overflow: hidden !important;
         }
         
         .shift-table th {
             background-color: #f5f5f5 !important;
             font-weight: bold !important;
+            height: 12px !important;
+        }
+        
+        .shift-table td {
+            height: 16px !important;
         }
         
         /* 従業員名列を固定幅に */
         .shift-table th:first-child,
         .shift-table td:first-child {
-            width: 60px !important;
-            max-width: 60px !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
+            width: 45px !important;
+            max-width: 45px !important;
+            font-size: 5px !important;
         }
         
-        /* 日付セルを小さく */
+        /* 日付セルを極小に */
         .shift-table th:not(:first-child),
         .shift-table td:not(:first-child) {
-            width: 25px !important;
-            max-width: 25px !important;
-            font-size: 7px !important;
+            width: 20px !important;
+            max-width: 20px !important;
+            font-size: 5px !important;
         }
         
-        /* ページブレークの調整 */
+        /* ページ分割を防ぐ */
         .shift-table {
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
         }
         
-        /* 色設定を印刷用に調整 */
+        .shift-table tbody tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        
+        /* テーブル全体の高さを制限 */
+        .shift-table-container {
+            max-height: 250mm !important;
+            overflow: hidden !important;
+        }
+        
+        /* 色設定を印刷用に調整（グレースケール対応） */
         .shift-table td[style*="background-color: #d4edda"] {
             background-color: #e8e8e8 !important;
         }
@@ -234,17 +275,9 @@
             background-color: #f0f0f0 !important;
         }
         
-        /* 月タイトルのみ表示 */
-        h3#current-month {
-            display: block !important;
-            font-size: 14px !important;
-            margin: 0 0 10px 0 !important;
-            text-align: center !important;
-        }
-        
-        /* 他のh3要素は非表示 */
-        h3:not(#current-month) {
-            display: none !important;
+        /* 小さい文字で時間表示を調整 */
+        .shift-table td br {
+            line-height: 0.8 !important;
         }
     }
     </style>

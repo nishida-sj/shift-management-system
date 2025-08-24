@@ -110,8 +110,9 @@ $(document).ready(function() {
                         <th style="width: 100px; position: sticky; left: 0; background: #f8f9fa; z-index: 10;">日付・行事</th>
         `;
         
-        // 従業員名ヘッダー
-        employees.forEach(employee => {
+        // 従業員名ヘッダー（並び順マスタに従って）
+        const orderedEmployees = getOrderedEmployees(employees);
+        orderedEmployees.forEach(employee => {
             tableHtml += `
                 <th style="width: 80px; text-align: center; font-size: 11px;">
                     ${employee.name}<br>
@@ -143,8 +144,8 @@ $(document).ready(function() {
                     </td>
             `;
             
-            // 各従業員のシフトセル
-            employees.forEach(employee => {
+            // 各従業員のシフトセル（並び順マスタに従って）
+            orderedEmployees.forEach(employee => {
                 const shift = confirmedShifts[employee.code]?.[dateKey];
                 
                 let cellContent = '';
@@ -224,5 +225,42 @@ $(document).ready(function() {
         $errorDiv.removeClass('alert-success alert-warning').addClass('alert-danger');
         $errorDiv.html(`<strong>エラー:</strong> ${message}`);
         $errorDiv.show();
+    }
+    
+    // 従業員を並び順マスタに従って並び替え
+    function getOrderedEmployees(employees) {
+        try {
+            const employeeOrders = dataManager.getEmployeeOrders();
+            const businessTypes = dataManager.getBusinessTypes();
+            const orderedEmployees = [];
+            const usedEmployees = new Set();
+            
+            // 各業務区分の順序で従業員を追加
+            businessTypes.forEach(businessType => {
+                const order = employeeOrders[businessType.code];
+                if (order && Array.isArray(order)) {
+                    order.forEach(empCode => {
+                        const employee = employees.find(emp => emp.code === empCode);
+                        if (employee && !usedEmployees.has(empCode)) {
+                            orderedEmployees.push(employee);
+                            usedEmployees.add(empCode);
+                        }
+                    });
+                }
+            });
+            
+            // 並び順が設定されていない従業員をデフォルト順序で追加
+            employees.forEach(employee => {
+                if (!usedEmployees.has(employee.code)) {
+                    orderedEmployees.push(employee);
+                }
+            });
+            
+            return orderedEmployees;
+        } catch (error) {
+            console.error('従業員並び順取得エラー:', error);
+            // エラー時はデフォルト順序（従業員コード順）
+            return [...employees].sort((a, b) => a.code.localeCompare(b.code));
+        }
     }
 });
