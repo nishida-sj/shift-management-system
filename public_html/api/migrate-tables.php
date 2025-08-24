@@ -19,7 +19,7 @@ try {
     try {
         $sql = "CREATE TABLE IF NOT EXISTS shift_conditions (
             id INT PRIMARY KEY AUTO_INCREMENT,
-            condition_data JSON NOT NULL COMMENT 'シフト条件設定データ（JSON形式）',
+            condition_data TEXT NOT NULL COMMENT 'シフト条件設定データ（JSON形式）',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) COMMENT='シフト条件設定'";
@@ -75,7 +75,7 @@ try {
     try {
         $sql = "CREATE TABLE IF NOT EXISTS company_info (
             id INT PRIMARY KEY AUTO_INCREMENT,
-            company_data JSON NOT NULL COMMENT '会社情報データ（JSON形式）',
+            company_data TEXT NOT NULL COMMENT '会社情報データ（JSON形式）',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) COMMENT='会社情報'";
@@ -110,7 +110,7 @@ try {
         $sql = "CREATE TABLE IF NOT EXISTS employee_orders (
             id INT PRIMARY KEY AUTO_INCREMENT,
             business_type_code VARCHAR(50) NOT NULL,
-            order_data JSON NOT NULL COMMENT '従業員並び順データ（JSON形式）',
+            order_data TEXT NOT NULL COMMENT '従業員並び順データ（JSON形式）',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             UNIQUE KEY unique_business_type (business_type_code)
