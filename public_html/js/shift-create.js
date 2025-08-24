@@ -15,7 +15,7 @@ $(document).ready(function() {
     // 初期表示
     async function initialize() {
         await loadData();
-        renderShiftTable();
+        await renderShiftTable();
         updateStatusDisplay();
         loadNotes();
         loadShiftRequestsSidebar();
@@ -29,7 +29,7 @@ $(document).ready(function() {
         await saveCurrentShift();
         currentDate.setMonth(currentDate.getMonth() - 1);
         await loadData();
-        renderShiftTable();
+        await renderShiftTable();
         updateStatusDisplay();
         loadNotes();
         loadShiftRequestsSidebar();
@@ -39,7 +39,7 @@ $(document).ready(function() {
         await saveCurrentShift();
         currentDate.setMonth(currentDate.getMonth() + 1);
         await loadData();
-        renderShiftTable();
+        await renderShiftTable();
         updateStatusDisplay();
         loadNotes();
         loadShiftRequestsSidebar();
@@ -68,8 +68,8 @@ $(document).ready(function() {
     });
     
     // Excelエクスポート
-    $('#excel-export-btn').on('click', function() {
-        exportToExcel();
+    $('#excel-export-btn').on('click', async function() {
+        await exportToExcel();
     });
     
     // 備考保存
@@ -78,17 +78,17 @@ $(document).ready(function() {
     });
     
     // 出勤統計ボタン
-    $('#show-month-end-stats').on('click', function() {
-        showAttendanceStats('month-end');
+    $('#show-month-end-stats').on('click', async function() {
+        await showAttendanceStats('month-end');
     });
     
-    $('#show-closing-date-stats').on('click', function() {
-        showAttendanceStats('closing-date');
+    $('#show-closing-date-stats').on('click', async function() {
+        await showAttendanceStats('closing-date');
     });
     
     // シフト編集モーダル
-    $('#save-shift-edit-btn').on('click', function() {
-        saveShiftEdit();
+    $('#save-shift-edit-btn').on('click', async function() {
+        await saveShiftEdit();
     });
     
     $('#cancel-shift-edit-btn').on('click', function() {
@@ -274,7 +274,7 @@ $(document).ready(function() {
     }
     
     // シフト表描画（縦：日付・行事、横：従業員）
-    function renderShiftTable() {
+    async function renderShiftTable() {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
         
@@ -291,7 +291,7 @@ $(document).ready(function() {
         let tableHtml = '<table class="table calendar-table">';
         
         // 従業員を並び順マスタに従って並び替え
-        const orderedEmployees = getOrderedEmployees(employees);
+        const orderedEmployees = await getOrderedEmployees(employees);
         
         // ヘッダー行（従業員名）
         tableHtml += '<thead><tr><th style="min-width: 120px;">日付・行事</th><th style="min-width: 100px;">備考</th>';
@@ -656,7 +656,7 @@ $(document).ready(function() {
                 }
             }
             
-            renderShiftTable();
+            await renderShiftTable();
             await saveCurrentShift();
             
             showSuccess(`シフト自動作成完了: ${successCount}日作成、${skipCount}日スキップ`);
@@ -1215,9 +1215,10 @@ $(document).ready(function() {
     }
     
     // 従業員を統一並び順マスタに従って並び替え
-    function getOrderedEmployees(employees) {
+    async function getOrderedEmployees(employees) {
         try {
-            const employeeOrders = dataManager.getEmployeeOrders();
+            // APIから最新の並び順を取得
+            const employeeOrders = await apiClient.getEmployeeOrders();
             const orderedEmployees = [];
             const usedEmployees = new Set();
             
@@ -1313,7 +1314,7 @@ $(document).ready(function() {
     }
     
     // シフト編集保存
-    function saveShiftEdit() {
+    async function saveShiftEdit() {
         if (!editingCell) return;
         
         const newShift = $('#edit-shift-time').val();
@@ -1329,7 +1330,7 @@ $(document).ready(function() {
         currentShift[editingCell.employeeCode][editingCell.date] = newShift;
         shiftCellBackgrounds[editingCell.employeeCode][editingCell.date] = newBgColor;
         
-        renderShiftTable();
+        await renderShiftTable();
         closeShiftEditModal();
         showSuccess('シフトを更新しました。');
     }
@@ -1448,12 +1449,12 @@ $(document).ready(function() {
     }
     
     // Excelエクスポート機能
-    function exportToExcel() {
+    async function exportToExcel() {
         try {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth() + 1;
             const daysInMonth = new Date(year, month, 0).getDate();
-            const orderedEmployees = getOrderedEmployees(employees);
+            const orderedEmployees = await getOrderedEmployees(employees);
             
             // ワークブックとワークシートを作成
             const wb = XLSX.utils.book_new();
@@ -1656,7 +1657,7 @@ $(document).ready(function() {
     }
     
     // 出勤統計を表示
-    function showAttendanceStats(type) {
+    async function showAttendanceStats(type) {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
         const companyInfo = dataManager.getCompanyInfo();
@@ -1691,7 +1692,7 @@ $(document).ready(function() {
         }
         
         // 従業員を並び順マスタに従って並び替え
-        const orderedEmployees = getOrderedEmployees(employees);
+        const orderedEmployees = await getOrderedEmployees(employees);
         
         // 統計を計算
         const stats = calculateAttendanceStats(orderedEmployees, startDate, endDate);
