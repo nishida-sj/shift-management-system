@@ -71,20 +71,37 @@ $(document).ready(async function() {
             
             // 各時間帯の詳細をログ出力と正規化
             if (currentSettings.timeSlots && Array.isArray(currentSettings.timeSlots)) {
+                console.log('=== 時間帯正規化処理開始 ===');
+                const originalSlots = [...currentSettings.timeSlots];
+                
                 currentSettings.timeSlots = currentSettings.timeSlots.map((slot, index) => {
                     console.log(`shift-conditions: 元のtimeSlot[${index}]: "${slot}" (length: ${slot.length})`);
                     
                     // 時間帯を09:00形式に正規化
                     const parts = slot.split('-');
                     if (parts.length === 2) {
-                        const normalizedStart = normalizeTime(parts[0]);
-                        const normalizedEnd = normalizeTime(parts[1]);
+                        const normalizedStart = normalizeTime(parts[0].trim());
+                        const normalizedEnd = normalizeTime(parts[1].trim());
                         const normalizedSlot = `${normalizedStart}-${normalizedEnd}`;
                         console.log(`shift-conditions: 正規化後timeSlot[${index}]: "${normalizedSlot}"`);
                         return normalizedSlot;
                     }
+                    console.log(`shift-conditions: 正規化できません[${index}]: "${slot}"`);
                     return slot;
                 });
+                
+                // 正規化前後で変更があった場合は自動でデータベースを更新
+                const hasChanges = originalSlots.some((slot, index) => slot !== currentSettings.timeSlots[index]);
+                if (hasChanges) {
+                    console.log('=== 時間帯データに変更あり、データベース更新 ===');
+                    // 非同期で自動保存（エラーが起きても表示は継続）
+                    setTimeout(() => {
+                        saveTimeSlotNormalization();
+                    }, 1000);
+                }
+                
+                console.log('=== 時間帯正規化処理完了 ===');
+                console.log('正規化後のtimeSlots:', currentSettings.timeSlots);
             }
             
             // APIデータの構造検証
@@ -226,6 +243,26 @@ $(document).ready(async function() {
             row.find('.time-display').val(displayValue);
         }
     });
+    
+    // 時間帯正規化結果をデータベースに保存
+    async function saveTimeSlotNormalization() {
+        try {
+            console.log('=== 時間帯正規化をデータベースに保存開始 ===');
+            
+            const settingsToSave = {
+                basicSettings: currentSettings.basicSettings,
+                timeSlots: currentSettings.timeSlots,
+                priorities: currentSettings.priorities,
+                warnings: currentSettings.warnings
+            };
+            
+            console.log('正規化データ保存:', settingsToSave);
+            await apiClient.saveShiftConditions(settingsToSave);
+            console.log('=== 時間帯正規化をデータベースに保存完了 ===');
+        } catch (error) {
+            console.error('時間帯正規化の自動保存エラー:', error);
+        }
+    }
     
     // 設定を保存
     async function saveSettings() {
