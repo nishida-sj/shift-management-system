@@ -66,7 +66,15 @@ $(document).ready(async function() {
         try {
             console.log('シフト条件: API呼び出し開始');
             currentSettings = await apiClient.getShiftConditions();
-            console.log('シフト条件: API応答データ:', currentSettings);
+            console.log('シフト条件: API応答データ:', JSON.stringify(currentSettings, null, 2));
+            console.log('シフト条件: timeSlots詳細:', currentSettings.timeSlots);
+            
+            // 各時間帯の詳細をログ出力
+            if (currentSettings.timeSlots && Array.isArray(currentSettings.timeSlots)) {
+                currentSettings.timeSlots.forEach((slot, index) => {
+                    console.log(`shift-conditions: timeSlot[${index}]: "${slot}" (length: ${slot.length})`);
+                });
+            }
             
             // APIデータの構造検証
             if (!currentSettings.basicSettings || !currentSettings.timeSlots) {
@@ -99,11 +107,16 @@ $(document).ready(async function() {
     
     // 時間帯一覧を描画
     function renderTimeSlots() {
+        console.log('shift-conditions: renderTimeSlots開始');
+        console.log('shift-conditions: 描画対象の時間帯:', currentSettings.timeSlots);
+        
         let html = '';
         currentSettings.timeSlots.forEach((timeSlot, index) => {
+            console.log(`shift-conditions: 時間帯[${index}]を描画: "${timeSlot}"`);
             html += createTimeSlotRow(timeSlot, index);
         });
         $('#time-slots-container').html(html);
+        console.log('shift-conditions: renderTimeSlots完了');
     }
     
     // 時間を正規化（H:mm → HH:mm）
@@ -123,9 +136,14 @@ $(document).ready(async function() {
 
     // 時間帯行を作成
     function createTimeSlotRow(timeSlot = '', index = -1) {
+        console.log(`shift-conditions: createTimeSlotRow呼び出し - timeSlot: "${timeSlot}"`);
+        
         const timeSlotParts = timeSlot.split('-');
         const startTime = normalizeTime(timeSlotParts[0] || '');
         const endTime = normalizeTime(timeSlotParts[1] || '');
+        
+        console.log(`shift-conditions: 時間帯分解 - parts: [${timeSlotParts.join(', ')}]`);
+        console.log(`shift-conditions: 正規化結果 - startTime: "${startTime}", endTime: "${endTime}"`);
         
         return `
             <div class="time-slot-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
@@ -165,9 +183,9 @@ $(document).ready(async function() {
             const endTime = row.find('.end-time').val();
             
             if (startTime && endTime) {
-                // 表示名は元の形式（H:mm）で保存
-                const displayStartTime = startTime.replace(/^0/, ''); // 先頭0を除去
-                const displayEndTime = endTime.replace(/^0/, ''); // 先頭0を除去
+                // 表示名は元の形式（H:mm）で保存 - 先頭の0のみ削除（例: 09:00 -> 9:00）
+                const displayStartTime = startTime.replace(/^0(\d)/, '$1'); 
+                const displayEndTime = endTime.replace(/^0(\d)/, '$1');
                 const displayValue = `${displayStartTime}-${displayEndTime}`;
                 row.find('.time-display').val(displayValue);
             }
@@ -181,9 +199,9 @@ $(document).ready(async function() {
         const endTime = row.find('.end-time').val();
         
         if (startTime && endTime) {
-            // 表示名は元の形式（H:mm）で保存
-            const displayStartTime = startTime.replace(/^0/, ''); // 先頭0を除去
-            const displayEndTime = endTime.replace(/^0/, ''); // 先頭0を除去
+            // 表示名は元の形式（H:mm）で保存 - 先頭の0のみ削除（例: 09:00 -> 9:00）
+            const displayStartTime = startTime.replace(/^0(\d)/, '$1');
+            const displayEndTime = endTime.replace(/^0(\d)/, '$1');
             const displayValue = `${displayStartTime}-${displayEndTime}`;
             row.find('.time-display').val(displayValue);
         }
@@ -205,13 +223,18 @@ $(document).ready(async function() {
                 const startTime = $(this).find('.start-time').val();
                 const endTime = $(this).find('.end-time').val();
                 
+                console.log(`shift-conditions: 処理中の時間帯 - start: "${startTime}", end: "${endTime}"`);
+                
                 if (startTime && endTime) {
                     // 保存時は表示形式（H:mm）で統一 - 先頭の0のみ削除（例: 09:00 -> 9:00）
                     const displayStartTime = startTime.replace(/^0(\d)/, '$1'); 
                     const displayEndTime = endTime.replace(/^0(\d)/, '$1');
                     const timeSlotString = `${displayStartTime}-${displayEndTime}`;
+                    
+                    console.log(`shift-conditions: 変換結果 - "${startTime}" -> "${displayStartTime}", "${endTime}" -> "${displayEndTime}"`);
+                    console.log(`shift-conditions: 最終的な時間帯文字列: "${timeSlotString}"`);
+                    
                     timeSlots.push(timeSlotString);
-                    console.log('shift-conditions: 時間帯保存:', timeSlotString);
                 }
             });
             

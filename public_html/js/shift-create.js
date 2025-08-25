@@ -1848,22 +1848,24 @@ $(document).ready(function() {
             // APIからシフト条件を取得
             console.log('shift-create: 時間帯選択肢生成開始');
             const shiftConditions = await apiClient.getShiftConditions();
-            console.log('shift-create: 取得したシフト条件:', shiftConditions);
+            console.log('shift-create: 取得したシフト条件:', JSON.stringify(shiftConditions, null, 2));
             
             const timeSlots = shiftConditions.timeSlots || [];
             console.log('shift-create: 時間帯一覧:', timeSlots);
+            console.log('shift-create: 時間帯一覧の長さ:', timeSlots.length);
             
             let optionsHtml = '<option value="">休み</option>';
             
             // 時間帯マスタから選択肢を生成
-            timeSlots.forEach(timeSlot => {
+            timeSlots.forEach((timeSlot, index) => {
+                console.log(`shift-create: 時間帯[${index}]: "${timeSlot}" (type: ${typeof timeSlot}, length: ${timeSlot ? timeSlot.length : 'N/A'})`);
                 optionsHtml += `<option value="${timeSlot}">${timeSlot}</option>`;
-                console.log('shift-create: 時間帯選択肢追加:', timeSlot);
             });
             
             // 「終日」オプションを追加
             optionsHtml += '<option value="終日">終日</option>';
             
+            console.log('shift-create: 生成されたHTML:', optionsHtml);
             $('#edit-shift-time').html(optionsHtml);
             console.log('shift-create: 時間帯選択肢生成完了');
         } catch (error) {
