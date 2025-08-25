@@ -358,7 +358,7 @@ $(document).ready(function() {
         loadDateNotes();
         
         // セルクリックイベント
-        $('.shift-cell').on('click', function() {
+        $('.shift-cell').on('click', async function() {
             if (shiftStatus === 'confirmed') {
                 showError('確定済みのシフトは編集できません。確定解除してから編集してください。');
                 return;
@@ -366,7 +366,7 @@ $(document).ready(function() {
             
             const employeeCode = $(this).data('employee');
             const date = $(this).data('date');
-            openShiftEditModal(employeeCode, date);
+            await openShiftEditModal(employeeCode, date);
         });
         
         // 備考入力イベント
@@ -1281,7 +1281,7 @@ $(document).ready(function() {
     }
     
     // シフト編集モーダルを開く
-    function openShiftEditModal(employeeCode, date) {
+    async function openShiftEditModal(employeeCode, date) {
         const employee = employees.find(emp => emp.code === employeeCode);
         const currentShiftTime = currentShift[employeeCode] ? currentShift[employeeCode][date] : '';
         const currentBgColor = shiftCellBackgrounds[employeeCode] ? shiftCellBackgrounds[employeeCode][date] : '';
@@ -1290,7 +1290,7 @@ $(document).ready(function() {
         $('#edit-date').text(formatDateForDisplay(date));
         
         // 時間帯マスタから選択肢を生成
-        populateShiftTimeOptions();
+        await populateShiftTimeOptions();
         
         $('#edit-shift-time').val(currentShiftTime);
         $('#edit-cell-background').val(currentBgColor);
@@ -1843,21 +1843,28 @@ $(document).ready(function() {
     }
     
     // シフト時間選択肢を時間帯マスタから生成
-    function populateShiftTimeOptions() {
-        const shiftConditions = dataManager.getShiftConditions();
-        const timeSlots = shiftConditions.timeSlots || [];
-        
-        let optionsHtml = '<option value="">休み</option>';
-        
-        // 時間帯マスタから選択肢を生成
-        timeSlots.forEach(timeSlot => {
-            optionsHtml += `<option value="${timeSlot}">${timeSlot}</option>`;
-        });
-        
-        // 「終日」オプションを追加
-        optionsHtml += '<option value="終日">終日</option>';
-        
-        $('#edit-shift-time').html(optionsHtml);
+    async function populateShiftTimeOptions() {
+        try {
+            // APIからシフト条件を取得
+            const shiftConditions = await apiClient.getShiftConditions();
+            const timeSlots = shiftConditions.timeSlots || [];
+            
+            let optionsHtml = '<option value="">休み</option>';
+            
+            // 時間帯マスタから選択肢を生成
+            timeSlots.forEach(timeSlot => {
+                optionsHtml += `<option value="${timeSlot}">${timeSlot}</option>`;
+            });
+            
+            // 「終日」オプションを追加
+            optionsHtml += '<option value="終日">終日</option>';
+            
+            $('#edit-shift-time').html(optionsHtml);
+        } catch (error) {
+            console.error('時間帯選択肢生成エラー:', error);
+            // エラー時は基本的な選択肢のみ
+            $('#edit-shift-time').html('<option value="">休み</option><option value="終日">終日</option>');
+        }
     }
     
     // サイドバーにシフト希望を表示
