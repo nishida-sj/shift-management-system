@@ -69,10 +69,21 @@ $(document).ready(async function() {
             console.log('シフト条件: API応答データ:', JSON.stringify(currentSettings, null, 2));
             console.log('シフト条件: timeSlots詳細:', currentSettings.timeSlots);
             
-            // 各時間帯の詳細をログ出力
+            // 各時間帯の詳細をログ出力と正規化
             if (currentSettings.timeSlots && Array.isArray(currentSettings.timeSlots)) {
-                currentSettings.timeSlots.forEach((slot, index) => {
-                    console.log(`shift-conditions: timeSlot[${index}]: "${slot}" (length: ${slot.length})`);
+                currentSettings.timeSlots = currentSettings.timeSlots.map((slot, index) => {
+                    console.log(`shift-conditions: 元のtimeSlot[${index}]: "${slot}" (length: ${slot.length})`);
+                    
+                    // 時間帯を09:00形式に正規化
+                    const parts = slot.split('-');
+                    if (parts.length === 2) {
+                        const normalizedStart = normalizeTime(parts[0]);
+                        const normalizedEnd = normalizeTime(parts[1]);
+                        const normalizedSlot = `${normalizedStart}-${normalizedEnd}`;
+                        console.log(`shift-conditions: 正規化後timeSlot[${index}]: "${normalizedSlot}"`);
+                        return normalizedSlot;
+                    }
+                    return slot;
                 });
             }
             
@@ -142,8 +153,12 @@ $(document).ready(async function() {
         const startTime = normalizeTime(timeSlotParts[0] || '');
         const endTime = normalizeTime(timeSlotParts[1] || '');
         
+        // 表示名は09:00形式で統一
+        const displayName = startTime && endTime ? `${startTime}-${endTime}` : timeSlot;
+        
         console.log(`shift-conditions: 時間帯分解 - parts: [${timeSlotParts.join(', ')}]`);
         console.log(`shift-conditions: 正規化結果 - startTime: "${startTime}", endTime: "${endTime}"`);
+        console.log(`shift-conditions: 表示名: "${displayName}"`);
         
         return `
             <div class="time-slot-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
@@ -157,7 +172,7 @@ $(document).ready(async function() {
                 </div>
                 <div style="flex: 2;">
                     <label>表示名</label>
-                    <input type="text" class="form-control time-display" value="${timeSlot}" placeholder="例: 09:00-13:00" readonly>
+                    <input type="text" class="form-control time-display" value="${displayName}" placeholder="例: 09:00-13:00" readonly>
                 </div>
                 <div>
                     <button type="button" class="btn btn-secondary remove-time-slot-btn" style="margin-top: 25px;">削除</button>
