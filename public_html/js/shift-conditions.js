@@ -236,7 +236,9 @@ $(document).ready(async function() {
             };
             
             // APIで保存
+            console.log('シフト条件保存: APIに送信するデータ:', currentSettings);
             await apiClient.saveShiftConditions(currentSettings);
+            console.log('シフト条件保存: API保存成功');
             
             // 後方互換性のためローカルストレージにも保存
             

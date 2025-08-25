@@ -280,17 +280,7 @@ class ApiClient {
         return this.delete('/business-types.php', { code });
     }
 
-    // シフト条件設定
-    async getShiftConditions() {
-        console.log('APIClient: シフト条件取得開始');
-        const result = await this.get('/shift-conditions.php');
-        console.log('APIClient: シフト条件取得結果:', result);
-        return result;
-    }
-
-    async saveShiftConditions(conditions) {
-        return this.post('/shift-conditions.php', conditions);
-    }
+    // 重複削除 - 上記のshift-conditions-api.php版を使用
 }
 
 // データ形式変換ユーティリティ
