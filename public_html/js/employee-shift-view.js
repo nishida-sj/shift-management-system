@@ -10,25 +10,29 @@ $(document).ready(function() {
     checkLogin();
     
     // 初期表示
-    loadData();
-    renderShiftTable();
-    renderEmployeeSummary();
-    loadNotes();
-    updateStatusDisplay();
+    async function initialize() {
+        await loadData();
+        renderShiftTable();
+        renderEmployeeSummary();
+        loadNotes();
+        updateStatusDisplay();
+    }
+    
+    initialize();
     
     // 月移動ボタン
-    $('#prev-month').on('click', function() {
+    $('#prev-month').on('click', async function() {
         currentDate.setMonth(currentDate.getMonth() - 1);
-        loadData();
+        await loadData();
         renderShiftTable();
         renderEmployeeSummary();
         loadNotes();
         updateStatusDisplay();
     });
     
-    $('#next-month').on('click', function() {
+    $('#next-month').on('click', async function() {
         currentDate.setMonth(currentDate.getMonth() + 1);
-        loadData();
+        await loadData();
         renderShiftTable();
         renderEmployeeSummary();
         loadNotes();
@@ -90,15 +94,52 @@ $(document).ready(function() {
     }
     
     // データ読み込み
-    function loadData() {
-        eventMaster = dataManager.getEvents();
-        
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        
-        monthlyEvents = dataManager.getMonthlyEvents(year, month);
-        currentShift = dataManager.getConfirmedShift(year, month);
-        shiftStatus = dataManager.getShiftStatus(year, month);
+    async function loadData() {
+        try {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            console.log(`employee-shift-view: API経由でデータ読み込み開始 ${year}/${month}`);
+            
+            // API経由でデータを取得
+            const [apiEvents, apiMonthlyEvents, apiShift] = await Promise.all([
+                apiClient.getEvents(),
+                apiClient.getMonthlyEvents(year, month),
+                apiClient.getShift(year, month)
+            ]);
+            
+            // データを変換
+            eventMaster = dataConverter.convertEvents(apiEvents);
+            monthlyEvents = dataConverter.convertMonthlyEvents(apiMonthlyEvents);
+            
+            console.log('employee-shift-view: API経由シフトデータ:', apiShift);
+            
+            if (apiShift && apiShift.shift_data && apiShift.status) {
+                currentShift = JSON.parse(apiShift.shift_data);
+                shiftStatus = apiShift.status;
+                console.log('employee-shift-view: 確定シフトデータ取得成功');
+                console.log('employee-shift-view: シフトステータス:', shiftStatus);
+                console.log('employee-shift-view: 現在ユーザー:', currentUser.username);
+                console.log('employee-shift-view: 現在ユーザーのシフト:', currentShift[currentUser.username]);
+            } else {
+                console.log('employee-shift-view: 確定シフトデータなし、初期化');
+                currentShift = {};
+                shiftStatus = 'draft';
+            }
+            
+        } catch (error) {
+            console.error('employee-shift-view: API経由データ読み込みエラー:', error);
+            // フォールバック：dataManagerを使用
+            console.log('employee-shift-view: dataManagerを使用してフォールバック');
+            eventMaster = dataManager.getEvents();
+            
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            monthlyEvents = dataManager.getMonthlyEvents(year, month);
+            currentShift = dataManager.getConfirmedShift(year, month);
+            shiftStatus = dataManager.getShiftStatus(year, month);
+        }
     }
     
     // ステータス表示更新
