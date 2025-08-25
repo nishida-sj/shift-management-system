@@ -132,33 +132,42 @@ $(document).ready(async function() {
     
     // 時間を正規化（H:mm → HH:mm）
     function normalizeTime(timeString) {
-        if (!timeString) return '';
+        console.log(`normalizeTime: 入力 "${timeString}"`);
+        if (!timeString) {
+            console.log(`normalizeTime: 空文字のため空文字を返す`);
+            return '';
+        }
         
         // HH:mm:ss形式の場合は時:分だけ取得
         if (timeString.includes(':')) {
             const parts = timeString.split(':');
             const hours = parts[0].padStart(2, '0');
             const minutes = parts[1] || '00';
-            return `${hours}:${minutes}`;
+            const result = `${hours}:${minutes}`;
+            console.log(`normalizeTime: "${timeString}" -> "${result}"`);
+            return result;
         }
         
+        console.log(`normalizeTime: コロンなし、そのまま返す "${timeString}"`);
         return timeString;
     }
 
     // 時間帯行を作成
     function createTimeSlotRow(timeSlot = '', index = -1) {
-        console.log(`shift-conditions: createTimeSlotRow呼び出し - timeSlot: "${timeSlot}"`);
+        console.log(`=== createTimeSlotRow START ===`);
+        console.log(`shift-conditions: 入力timeSlot: "${timeSlot}"`);
         
         const timeSlotParts = timeSlot.split('-');
+        console.log(`shift-conditions: 分解結果: [${timeSlotParts.map(p => `"${p}"`).join(', ')}]`);
+        
         const startTime = normalizeTime(timeSlotParts[0] || '');
         const endTime = normalizeTime(timeSlotParts[1] || '');
+        console.log(`shift-conditions: normalizeTime結果 - start: "${startTime}", end: "${endTime}"`);
         
         // 表示名は09:00形式で統一
         const displayName = startTime && endTime ? `${startTime}-${endTime}` : timeSlot;
-        
-        console.log(`shift-conditions: 時間帯分解 - parts: [${timeSlotParts.join(', ')}]`);
-        console.log(`shift-conditions: 正規化結果 - startTime: "${startTime}", endTime: "${endTime}"`);
-        console.log(`shift-conditions: 表示名: "${displayName}"`);
+        console.log(`shift-conditions: 最終表示名: "${displayName}"`);
+        console.log(`=== createTimeSlotRow END ===`);
         
         return `
             <div class="time-slot-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
