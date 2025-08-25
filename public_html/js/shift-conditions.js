@@ -206,10 +206,12 @@ $(document).ready(async function() {
                 const endTime = $(this).find('.end-time').val();
                 
                 if (startTime && endTime) {
-                    // 保存時は表示形式（H:mm）で統一
-                    const displayStartTime = startTime.replace(/^0/, ''); 
-                    const displayEndTime = endTime.replace(/^0/, '');
-                    timeSlots.push(`${displayStartTime}-${displayEndTime}`);
+                    // 保存時は表示形式（H:mm）で統一 - 先頭の0のみ削除（例: 09:00 -> 9:00）
+                    const displayStartTime = startTime.replace(/^0(\d)/, '$1'); 
+                    const displayEndTime = endTime.replace(/^0(\d)/, '$1');
+                    const timeSlotString = `${displayStartTime}-${displayEndTime}`;
+                    timeSlots.push(timeSlotString);
+                    console.log('shift-conditions: 時間帯保存:', timeSlotString);
                 }
             });
             
