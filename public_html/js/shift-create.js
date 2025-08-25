@@ -1875,6 +1875,13 @@ $(document).ready(function() {
         }
     }
     
+    // 時間を HH:MM 形式にフォーマット（秒を除去）
+    function formatTimeHHMM(timeString) {
+        if (!timeString) return '';
+        // HH:MM:SS -> HH:MM に変換
+        return timeString.replace(/^(\d{2}:\d{2}):\d{2}$/, '$1');
+    }
+
     // サイドバーにシフト希望を表示
     async function loadShiftRequestsSidebar() {
         const year = currentDate.getFullYear();
@@ -1901,7 +1908,7 @@ $(document).ready(function() {
                         emp.requests.forEach(req => {
                             const requestType = req.is_off_requested ? 
                                 '<span style="color: #dc3545; font-weight: bold;">休み</span>' :
-                                `<span style="color: #007bff;">${req.preferred_time_start || ''}-${req.preferred_time_end || ''}</span>`;
+                                `<span style="color: #007bff;">${formatTimeHHMM(req.preferred_time_start) || ''}-${formatTimeHHMM(req.preferred_time_end) || ''}</span>`;
                             
                             sidebarHtml += `
                                 <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; padding: 2px 0;">
