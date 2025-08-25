@@ -38,14 +38,14 @@ $(document).ready(async function() {
                 minRestDaysAfterConsecutive: 1
             },
             timeSlots: [
-                '9:00-13:00',
-                '9:30-14:00',
-                '9:30-16:00',
+                '09:00-13:00',
+                '09:30-14:00',
+                '09:30-16:00',
                 '10:00-14:00',
                 '10:00-16:00',
                 '13:00-17:00',
                 '14:00-18:00',
-                '9:00-17:00'
+                '09:00-17:00'
             ],
             priorities: {
                 prioritizeMainBusiness: true,
@@ -157,7 +157,7 @@ $(document).ready(async function() {
                 </div>
                 <div style="flex: 2;">
                     <label>表示名</label>
-                    <input type="text" class="form-control time-display" value="${timeSlot}" placeholder="例: 9:00-13:00" readonly>
+                    <input type="text" class="form-control time-display" value="${timeSlot}" placeholder="例: 09:00-13:00" readonly>
                 </div>
                 <div>
                     <button type="button" class="btn btn-secondary remove-time-slot-btn" style="margin-top: 25px;">削除</button>
@@ -183,10 +183,8 @@ $(document).ready(async function() {
             const endTime = row.find('.end-time').val();
             
             if (startTime && endTime) {
-                // 表示名は元の形式（H:mm）で保存 - 先頭の0のみ削除（例: 09:00 -> 9:00）
-                const displayStartTime = startTime.replace(/^0(\d)/, '$1'); 
-                const displayEndTime = endTime.replace(/^0(\d)/, '$1');
-                const displayValue = `${displayStartTime}-${displayEndTime}`;
+                // 表示名は09:00形式で統一（ゼロパディング有り）
+                const displayValue = `${startTime}-${endTime}`;
                 row.find('.time-display').val(displayValue);
             }
         });
@@ -199,10 +197,8 @@ $(document).ready(async function() {
         const endTime = row.find('.end-time').val();
         
         if (startTime && endTime) {
-            // 表示名は元の形式（H:mm）で保存 - 先頭の0のみ削除（例: 09:00 -> 9:00）
-            const displayStartTime = startTime.replace(/^0(\d)/, '$1');
-            const displayEndTime = endTime.replace(/^0(\d)/, '$1');
-            const displayValue = `${displayStartTime}-${displayEndTime}`;
+            // 表示名は09:00形式で統一（ゼロパディング有り）
+            const displayValue = `${startTime}-${endTime}`;
             row.find('.time-display').val(displayValue);
         }
     });
@@ -226,12 +222,10 @@ $(document).ready(async function() {
                 console.log(`shift-conditions: 処理中の時間帯 - start: "${startTime}", end: "${endTime}"`);
                 
                 if (startTime && endTime) {
-                    // 保存時は表示形式（H:mm）で統一 - 先頭の0のみ削除（例: 09:00 -> 9:00）
-                    const displayStartTime = startTime.replace(/^0(\d)/, '$1'); 
-                    const displayEndTime = endTime.replace(/^0(\d)/, '$1');
-                    const timeSlotString = `${displayStartTime}-${displayEndTime}`;
+                    // 保存時は09:00形式で統一（ゼロパディング有り）
+                    const timeSlotString = `${startTime}-${endTime}`;
                     
-                    console.log(`shift-conditions: 変換結果 - "${startTime}" -> "${displayStartTime}", "${endTime}" -> "${displayEndTime}"`);
+                    console.log(`shift-conditions: 時間帯保存 - "${startTime}-${endTime}"`);
                     console.log(`shift-conditions: 最終的な時間帯文字列: "${timeSlotString}"`);
                     
                     timeSlots.push(timeSlotString);

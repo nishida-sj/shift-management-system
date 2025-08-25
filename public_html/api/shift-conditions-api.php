@@ -37,14 +37,14 @@ function getShiftConditions($db) {
                     'minRestDaysAfterConsecutive' => 1
                 ],
                 'timeSlots' => [
-                    '9:00-13:00',
-                    '9:30-14:00',
-                    '9:30-16:00',
+                    '09:00-13:00',
+                    '09:30-14:00',
+                    '09:30-16:00',
                     '10:00-14:00',
                     '10:00-16:00',
                     '13:00-17:00',
                     '14:00-18:00',
-                    '9:00-17:00'
+                    '09:00-17:00'
                 ],
                 'priorities' => [
                     'prioritizeMainBusiness' => true,
