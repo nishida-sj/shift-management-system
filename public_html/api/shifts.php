@@ -289,7 +289,12 @@ function saveConfirmedShifts($db, $input) {
     error_log('=== saveConfirmedShifts開始 ===');
     error_log('Input data: ' . json_encode($input));
     
-    validateRequired($input, ['year', 'month', 'shifts']);
+    // shiftsパラメータの存在確認（空配列でもOK）
+    if (!isset($input['shifts'])) {
+        sendErrorResponse('shiftsパラメータが必要です');
+    }
+    
+    validateRequired($input, ['year', 'month']);
     validateDate($input['year'], $input['month']);
     
     if (!is_array($input['shifts'])) {

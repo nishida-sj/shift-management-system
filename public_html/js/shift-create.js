@@ -220,9 +220,11 @@ $(document).ready(function() {
         const month = currentDate.getMonth() + 1;
         
         try {
-            // currentShiftが空または未定義の場合はスキップ
+            // currentShiftが空または未定義の場合でも空配列で保存（削除処理のため）
             if (!currentShift || Object.keys(currentShift).length === 0) {
-                console.log('シフト保存: 保存するシフトデータがありません（スキップ）');
+                console.log('シフト保存: 空のシフトデータを送信（削除処理）');
+                await apiClient.saveConfirmedShifts(year, month, []);
+                console.log('シフト保存: 空データ送信完了');
                 return;
             }
             
@@ -259,6 +261,11 @@ $(document).ready(function() {
             
             console.log('シフト保存: APIに保存するデータ:', apiShifts);
             console.log('シフト保存: APIに保存するデータ件数:', apiShifts.length);
+            
+            // 空配列の場合もログを出力
+            if (apiShifts.length === 0) {
+                console.log('シフト保存: 空のシフト配列を送信（既存データ削除）');
+            }
             
             // APIに保存（空の場合でも削除処理として実行）
             await apiClient.saveConfirmedShifts(year, month, apiShifts);
