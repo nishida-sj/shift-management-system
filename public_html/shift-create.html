@@ -185,17 +185,20 @@
         }
         
         #notes-section h4 {
-            font-size: 8px !important;
-            margin: 2px 0 !important;
+            font-size: 12px !important; /* より大きく */
+            margin: 3px 0 !important;
             font-weight: bold !important;
+            color: #000 !important;
         }
         
         #notes-section textarea,
         #notes-section .form-control {
-            font-size: 6px !important;
-            padding: 1px !important;
-            border: 0.5px solid #000 !important;
+            font-size: 10px !important; /* より大きく */
+            padding: 2px !important;
+            border: 1px solid #000 !important;
             background: white !important;
+            color: #000 !important;
+            line-height: 1.2 !important;
         }
         
         .container {
@@ -214,12 +217,13 @@
         /* 月タイトルのみ表示 */
         h3#current-month {
             display: block !important;
-            font-size: 14px !important;
-            margin: 0 0 5px 0 !important;
+            font-size: 16px !important; /* より大きく */
+            margin: 0 0 8px 0 !important;
             text-align: center !important;
             font-weight: bold !important;
-            border-bottom: 1px solid #000 !important;
-            padding-bottom: 2px !important;
+            border-bottom: 2px solid #000 !important;
+            padding-bottom: 3px !important;
+            color: #000 !important;
         }
         
         /* 他のh3要素は非表示 */
@@ -229,7 +233,7 @@
         
         .shift-table,
         .table.calendar-table {
-            font-size: 7px !important;
+            font-size: 9px !important; /* より大きく */
             border-collapse: collapse !important;
             width: 100% !important;
             margin: 0 !important;
@@ -238,13 +242,14 @@
         
         .shift-table th, .shift-table td,
         .table.calendar-table th, .table.calendar-table td {
-            padding: 2px !important;
+            padding: 3px !important; /* より余裕のあるパディング */
             border: 0.5px solid #000 !important;
-            font-size: 7px !important;
-            line-height: 1.1 !important;
+            font-size: 9px !important; /* より大きく */
+            line-height: 1.2 !important;
             vertical-align: top !important;
             overflow: hidden !important;
             word-wrap: break-word !important;
+            color: #000 !important; /* 文字色を明示的に黒に */
         }
         
         .shift-table th,
@@ -264,30 +269,33 @@
         .shift-table td:first-child,
         .table.calendar-table th:first-child,
         .table.calendar-table td:first-child {
-            width: 50px !important;
-            max-width: 50px !important;
-            font-size: 7px !important; /* 従業員名を大きく */
+            width: 60px !important; /* 幅を広く */
+            max-width: 60px !important;
+            font-size: 10px !important; /* 従業員名をより大きく */
             font-weight: bold !important;
+            color: #000 !important;
         }
         
         /* 日付・行事ヘッダー（1行目）の文字サイズを大きく */
         .shift-table th:not(:first-child),
         .table.calendar-table th:not(:first-child) {
-            width: 22px !important;
-            max-width: 22px !important;
-            font-size: 7px !important; /* 日付・行事を読みやすく */
+            width: 24px !important; /* 幅を少し広く */
+            max-width: 24px !important;
+            font-size: 9px !important; /* 日付・行事をより読みやすく */
             font-weight: bold !important;
-            line-height: 1.1 !important;
+            line-height: 1.2 !important;
             text-align: center !important;
+            color: #000 !important;
         }
         
         /* データセル（シフト内容）*/
         .shift-table td:not(:first-child),
         .table.calendar-table td:not(:first-child) {
-            width: 22px !important;
-            max-width: 22px !important;
-            font-size: 6px !important; /* シフト時間も少し大きく */
+            width: 24px !important; /* 幅を少し広く */
+            max-width: 24px !important;
+            font-size: 8px !important; /* シフト時間をより大きく */
             text-align: center !important;
+            color: #000 !important;
         }
         
         /* ページ分割を防ぐ */
@@ -373,6 +381,13 @@
             -webkit-print-color-adjust: exact !important;
             color-adjust: exact !important;
             print-color-adjust: exact !important;
+            color: #000 !important; /* 印刷時は文字を黒に */
+        }
+        
+        /* 印刷時の文字色を強制的に黒に */
+        * {
+            color: #000 !important;
+            text-shadow: none !important;
         }
         
         /* 小さい文字で時間表示を調整 */
