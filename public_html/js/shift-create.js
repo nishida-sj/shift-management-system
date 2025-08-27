@@ -1860,10 +1860,30 @@ $(document).ready(function() {
         try {
             // APIからシフト条件を取得
             console.log('shift-create: 時間帯選択肢生成開始');
-            const shiftConditions = await apiClient.getShiftConditions();
-            console.log('shift-create: 取得したシフト条件:', JSON.stringify(shiftConditions, null, 2));
             
-            const timeSlots = shiftConditions.timeSlots || [];
+            let timeSlots = [];
+            try {
+                const shiftConditions = await apiClient.getShiftConditions();
+                console.log('shift-create: 取得したシフト条件:', JSON.stringify(shiftConditions, null, 2));
+                timeSlots = shiftConditions.timeSlots || [];
+            } catch (apiError) {
+                console.warn('shift-create: API取得失敗、フォールバック使用:', apiError);
+                // APIが失敗した場合はdataManagerから取得
+                if (typeof dataManager !== 'undefined' && dataManager.getShiftConditions) {
+                    const conditions = dataManager.getShiftConditions();
+                    timeSlots = conditions.timeSlots || [];
+                }
+            }
+            
+            // フォールバック用のデフォルト時間帯
+            if (!timeSlots || timeSlots.length === 0) {
+                console.log('shift-create: デフォルト時間帯を使用');
+                timeSlots = [
+                    '09:00-13:00', '09:30-14:00', '09:30-16:00', '10:00-14:00',
+                    '10:00-16:00', '13:00-17:00', '14:00-18:00', '09:00-17:00'
+                ];
+            }
+            
             console.log('shift-create: 時間帯一覧:', timeSlots);
             console.log('shift-create: 時間帯一覧の長さ:', timeSlots.length);
             
@@ -1884,7 +1904,14 @@ $(document).ready(function() {
         } catch (error) {
             console.error('時間帯選択肢生成エラー:', error);
             // エラー時は基本的な選択肢のみ
-            $('#edit-shift-time').html('<option value="">休み</option><option value="終日">終日</option>');
+            const basicOptions = '<option value="">休み</option>' +
+                                '<option value="09:00-13:00">09:00-13:00</option>' +
+                                '<option value="09:30-16:00">09:30-16:00</option>' +
+                                '<option value="10:00-16:00">10:00-16:00</option>' +
+                                '<option value="13:00-17:00">13:00-17:00</option>' +
+                                '<option value="09:00-17:00">09:00-17:00</option>' +
+                                '<option value="終日">終日</option>';
+            $('#edit-shift-time').html(basicOptions);
         }
     }
     

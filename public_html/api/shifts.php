@@ -335,23 +335,45 @@ function saveConfirmedShifts($db, $input) {
         $stmt = $db->prepare("DELETE FROM confirmed_shifts WHERE year = :year AND month = :month");
         $stmt->execute(['year' => $input['year'], 'month' => $input['month']]);
         
-        // 新データ挿入
-        $sql = "INSERT INTO confirmed_shifts (employee_code, year, month, day, time_start, time_end, business_type, is_violation, cell_background_color) 
-                VALUES (:employee_code, :year, :month, :day, :time_start, :time_end, :business_type, :is_violation, :cell_background_color)";
+        // カラム存在チェック
+        $columnCheck = $db->query("SHOW COLUMNS FROM confirmed_shifts LIKE 'cell_background_color'");
+        $hasColorColumn = $columnCheck->rowCount() > 0;
+        
+        // 新データ挿入（カラム存在に応じてSQL変更）
+        if ($hasColorColumn) {
+            $sql = "INSERT INTO confirmed_shifts (employee_code, year, month, day, time_start, time_end, business_type, is_violation, cell_background_color) 
+                    VALUES (:employee_code, :year, :month, :day, :time_start, :time_end, :business_type, :is_violation, :cell_background_color)";
+        } else {
+            $sql = "INSERT INTO confirmed_shifts (employee_code, year, month, day, time_start, time_end, business_type, is_violation) 
+                    VALUES (:employee_code, :year, :month, :day, :time_start, :time_end, :business_type, :is_violation)";
+        }
         $stmt = $db->prepare($sql);
         
         foreach ($input['shifts'] as $shift) {
-            $stmt->execute([
-                'employee_code' => $shift['employee_code'],
-                'year' => $input['year'],
-                'month' => $input['month'],
-                'day' => $shift['day'],
-                'time_start' => $shift['time_start'] ?? null,
-                'time_end' => $shift['time_end'] ?? null,
-                'business_type' => $shift['business_type'] ?? null,
-                'is_violation' => $shift['is_violation'] ?? 0,
-                'cell_background_color' => $shift['cell_background_color'] ?? null
-            ]);
+            if ($hasColorColumn) {
+                $stmt->execute([
+                    'employee_code' => $shift['employee_code'],
+                    'year' => $input['year'],
+                    'month' => $input['month'],
+                    'day' => $shift['day'],
+                    'time_start' => $shift['time_start'] ?? null,
+                    'time_end' => $shift['time_end'] ?? null,
+                    'business_type' => $shift['business_type'] ?? null,
+                    'is_violation' => $shift['is_violation'] ?? 0,
+                    'cell_background_color' => $shift['cell_background_color'] ?? null
+                ]);
+            } else {
+                $stmt->execute([
+                    'employee_code' => $shift['employee_code'],
+                    'year' => $input['year'],
+                    'month' => $input['month'],
+                    'day' => $shift['day'],
+                    'time_start' => $shift['time_start'] ?? null,
+                    'time_end' => $shift['time_end'] ?? null,
+                    'business_type' => $shift['business_type'] ?? null,
+                    'is_violation' => $shift['is_violation'] ?? 0
+                ]);
+            }
         }
         
         $db->commit();
