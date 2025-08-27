@@ -2,30 +2,68 @@ $(document).ready(function() {
     let currentEvents = [];
     let editingIndex = -1;
     
-    // 時間帯オプションをシフト条件設定から取得
+    // 時間帯マスタを格納する変数
+    let masterTimeSlots = [];
+    
+    // 時間帯マスタをAPIから非同期で取得
+    async function loadTimeSlotsFromAPI() {
+        try {
+            console.log('行事マスタ: 時間帯マスタAPI呼び出し開始');
+            const conditions = await apiClient.getShiftConditions();
+            if (conditions && conditions.timeSlots) {
+                masterTimeSlots = conditions.timeSlots;
+                console.log('行事マスタ: API から時間帯マスタ取得成功:', masterTimeSlots);
+                return masterTimeSlots;
+            }
+        } catch (error) {
+            console.error('行事マスタ: 時間帯マスタAPI取得エラー:', error);
+        }
+        
+        // APIが失敗した場合はデフォルト値を設定
+        masterTimeSlots = [
+            '09:00-13:00', '09:30-14:00', '09:30-16:00', '10:00-14:00',
+            '10:00-16:00', '13:00-17:00', '14:00-18:00', '09:00-17:00'
+        ];
+        console.log('行事マスタ: デフォルト時間帯を使用:', masterTimeSlots);
+        return masterTimeSlots;
+    }
+    
+    // 時間帯オプションを取得（同期版）
     function getTimeSlots() {
+        // まずmasterTimeSlotsから取得を試行
+        if (masterTimeSlots && masterTimeSlots.length > 0) {
+            console.log('行事マスタ: マスタ時間帯から取得:', masterTimeSlots);
+            return masterTimeSlots;
+        }
+        
+        // 次にdataManagerから取得を試行（後方互換性）
         if (typeof dataManager !== 'undefined' && dataManager.getShiftConditions) {
             const conditions = dataManager.getShiftConditions();
-            console.log('行事マスタ: 時間帯マスタから取得:', conditions.timeSlots);
-            return conditions.timeSlots || [
-                '9:00-13:00', '9:30-14:00', '9:30-16:00', '10:00-14:00',
-                '10:00-16:00', '13:00-17:00', '14:00-18:00', '9:00-17:00', '13:00-21:00'
-            ];
+            if (conditions && conditions.timeSlots) {
+                console.log('行事マスタ: dataManager時間帯から取得:', conditions.timeSlots);
+                return conditions.timeSlots;
+            }
         }
+        
         console.log('行事マスタ: フォールバック値を使用');
-        // フォールバック用の固定値
+        // フォールバック用のデフォルト値
         return [
-            '9:00-13:00', '9:30-14:00', '9:30-16:00', '10:00-14:00',
-            '10:00-16:00', '13:00-17:00', '14:00-18:00', '9:00-17:00', '13:00-21:00'
+            '09:00-13:00', '09:30-14:00', '09:30-16:00', '10:00-14:00',
+            '10:00-16:00', '13:00-17:00', '14:00-18:00', '09:00-17:00'
         ];
     }
     
-    // 初期表示
-    loadEvents();
+    // ページ初期化
+    async function initializePage() {
+        // 時間帯マスタを先に読み込み
+        await loadTimeSlotsFromAPI();
+        // 行事データを読み込み
+        loadEvents();
+    }
     
     // 新規追加ボタン
-    $('#add-event-btn').on('click', function() {
-        openModal('新規行事追加');
+    $('#add-event-btn').on('click', async function() {
+        await openModal('新規行事追加');
         clearForm();
         editingIndex = -1;
     });
@@ -95,9 +133,9 @@ $(document).ready(function() {
         $('#event-list').html(html);
         
         // イベントハンドラ設定
-        $('.edit-btn').on('click', function() {
+        $('.edit-btn').on('click', async function() {
             const index = $(this).data('index');
-            editEvent(index);
+            await editEvent(index);
         });
         
         $('.delete-btn').on('click', function() {
@@ -116,16 +154,18 @@ $(document).ready(function() {
     }
     
     // モーダルを開く
-    function openModal(title) {
+    async function openModal(title) {
         $('#modal-title').text(title);
         $('#event-modal').show();
         
         // モーダルを開くたびに最新の時間帯マスタを反映
-        updateExistingTimeSlots();
+        await updateExistingTimeSlots();
     }
     
     // 既存の時間帯選択肢を更新
-    function updateExistingTimeSlots() {
+    async function updateExistingTimeSlots() {
+        // 最新の時間帯マスタを取得
+        await loadTimeSlotsFromAPI();
         const timeSlots = getTimeSlots();
         
         $('.req-time').each(function() {
@@ -159,11 +199,11 @@ $(document).ready(function() {
     }
     
     // 行事編集
-    function editEvent(index) {
+    async function editEvent(index) {
         const event = currentEvents[index];
         editingIndex = index;
         
-        openModal('行事情報編集');
+        await openModal('行事情報編集');
         
         $('#event-id').val(event.id).prop('readonly', true);
         $('#event-name').val(event.name);
