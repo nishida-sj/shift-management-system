@@ -166,8 +166,13 @@ $(document).ready(function() {
                 initializeEmptyShift();
             }
             
-            // セル背景色データを読み込み
-            shiftCellBackgrounds = dataManager.getShiftCellBackgrounds(year, month);
+            // セル背景色データを読み込み（注意：既にAPIから読み込み済みの場合は上書きしない）
+            if (!shiftCellBackgrounds || Object.keys(shiftCellBackgrounds).length === 0) {
+                console.log('シフト作成: APIから色情報取得失敗、ローカルストレージから読み込み');
+                shiftCellBackgrounds = dataManager.getShiftCellBackgrounds(year, month);
+            } else {
+                console.log('シフト作成: APIから色情報取得済み、ローカルストレージはスキップ');
+            }
             
         } catch (error) {
             console.error('シフト作成: データ取得エラー:', error);
@@ -188,7 +193,13 @@ $(document).ready(function() {
                 initializeEmptyShift();
             }
             
-            shiftCellBackgrounds = dataManager.getShiftCellBackgrounds(year, month);
+            // エラー時でも、APIから既に読み込まれた色情報がある場合は保持
+            if (!shiftCellBackgrounds || Object.keys(shiftCellBackgrounds).length === 0) {
+                console.log('シフト作成: エラー処理 - ローカルストレージから色情報読み込み');
+                shiftCellBackgrounds = dataManager.getShiftCellBackgrounds(year, month);
+            } else {
+                console.log('シフト作成: エラー処理 - APIから取得済みの色情報を保持');
+            }
             
             showError('データ取得に失敗しました。ローカルデータを使用します。');
         }
@@ -278,7 +289,8 @@ $(document).ready(function() {
         
         // ローカルストレージにも保存（バックアップ・後方互換性）
         dataManager.saveConfirmedShift(year, month, currentShift);
-        dataManager.saveShiftCellBackgrounds(year, month, shiftCellBackgrounds);
+        // 色情報のローカル保存は最小限に（DB中心運用のため）
+        console.log('シフト保存: 色情報はDB中心、ローカルストレージ保存は最小限に抑制');
     }
     
     // ステータス表示更新
@@ -1379,6 +1391,10 @@ $(document).ready(function() {
         
         currentShift[editingCell.employeeCode][editingCell.date] = newShift;
         shiftCellBackgrounds[editingCell.employeeCode][editingCell.date] = newBgColor;
+        
+        // 色情報をDBに保存
+        console.log('saveShiftEdit: 色情報をDBに保存');
+        await saveCurrentShift();
         
         await renderShiftTable();
         closeShiftEditModal();
