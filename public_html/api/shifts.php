@@ -336,8 +336,8 @@ function saveConfirmedShifts($db, $input) {
         $stmt->execute(['year' => $input['year'], 'month' => $input['month']]);
         
         // 新データ挿入
-        $sql = "INSERT INTO confirmed_shifts (employee_code, year, month, day, time_start, time_end, business_type, is_violation) 
-                VALUES (:employee_code, :year, :month, :day, :time_start, :time_end, :business_type, :is_violation)";
+        $sql = "INSERT INTO confirmed_shifts (employee_code, year, month, day, time_start, time_end, business_type, is_violation, cell_background_color) 
+                VALUES (:employee_code, :year, :month, :day, :time_start, :time_end, :business_type, :is_violation, :cell_background_color)";
         $stmt = $db->prepare($sql);
         
         foreach ($input['shifts'] as $shift) {
@@ -349,7 +349,8 @@ function saveConfirmedShifts($db, $input) {
                 'time_start' => $shift['time_start'] ?? null,
                 'time_end' => $shift['time_end'] ?? null,
                 'business_type' => $shift['business_type'] ?? null,
-                'is_violation' => $shift['is_violation'] ?? 0
+                'is_violation' => $shift['is_violation'] ?? 0,
+                'cell_background_color' => $shift['cell_background_color'] ?? null
             ]);
         }
         

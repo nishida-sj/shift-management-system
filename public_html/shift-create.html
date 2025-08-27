@@ -265,13 +265,35 @@
             overflow: hidden !important;
         }
         
-        /* 色設定を印刷用に調整（グレースケール対応） */
+        /* 色設定を印刷用に調整（カラー対応） */
+        .shift-table td[style*="background-color: #fff3cd"] {
+            background-color: #fff3cd !important; /* オレンジ */
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+        }
+        
+        .shift-table td[style*="background-color: #fffbf0"] {
+            background-color: #fffbf0 !important; /* 黄色 */
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+        }
+        
         .shift-table td[style*="background-color: #d4edda"] {
-            background-color: #e8e8e8 !important;
+            background-color: #d4edda !important; /* 緑 */
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+        }
+        
+        .shift-table td[style*="background-color: #cce7ff"] {
+            background-color: #cce7ff !important; /* 青 */
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
         }
         
         .shift-table td[style*="background-color: #f8d7da"] {
-            background-color: #d0d0d0 !important;
+            background-color: #f8d7da !important; /* ピンク */
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
         }
         
         .shift-table th[style*="background-color: #ffeaea"],

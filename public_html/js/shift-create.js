@@ -131,11 +131,13 @@ $(document).ready(function() {
             
             // 確定シフトデータをローカル形式に変換
             currentShift = {};
+            shiftCellBackgrounds = {};
             if (apiShifts && Array.isArray(apiShifts)) {
                 apiShifts.forEach(shift => {
                     // ネストした構造で格納: currentShift[employeeCode][dateString] = "timeStart-timeEnd"
                     if (!currentShift[shift.employee_code]) {
                         currentShift[shift.employee_code] = {};
+                        shiftCellBackgrounds[shift.employee_code] = {};
                     }
                     
                     // 日付文字列を生成 (YYYY-MM-DD形式)
@@ -146,7 +148,10 @@ $(document).ready(function() {
                     const timeEnd = shift.time_end.substring(0, 5);     // HH:MM:SS -> HH:MM
                     currentShift[shift.employee_code][dateString] = `${timeStart}-${timeEnd}`;
                     
-                    console.log(`シフト作成: 設定 ${shift.employee_code}[${dateString}] = "${timeStart}-${timeEnd}"`);
+                    // セル背景色を設定
+                    shiftCellBackgrounds[shift.employee_code][dateString] = shift.cell_background_color || '';
+                    
+                    console.log(`シフト作成: 設定 ${shift.employee_code}[${dateString}] = "${timeStart}-${timeEnd}" (色: ${shift.cell_background_color || 'なし'})`);
                 });
             }
             
@@ -226,6 +231,9 @@ $(document).ready(function() {
                         const day = parseInt(dayStr);
                         const [timeStart, timeEnd] = timeRange.split('-');
                         
+                        // セル背景色を取得
+                        const cellBgColor = shiftCellBackgrounds[employeeCode] ? shiftCellBackgrounds[employeeCode][dateString] : null;
+                        
                         apiShifts.push({
                             employee_code: employeeCode,
                             year: year,
@@ -234,7 +242,8 @@ $(document).ready(function() {
                             time_start: timeStart + ':00',
                             time_end: timeEnd + ':00',
                             business_type: '事務',
-                            is_violation: 0
+                            is_violation: 0,
+                            cell_background_color: cellBgColor
                         });
                     }
                 });
@@ -1384,6 +1393,9 @@ $(document).ready(function() {
                         // 時間範囲を分割
                         const [timeStart, timeEnd] = timeRange.split('-');
                         
+                        // セル背景色を取得
+                        const cellBgColor = shiftCellBackgrounds[employeeCode] ? shiftCellBackgrounds[employeeCode][dateString] : null;
+                        
                         // APIデータ形式に変換
                         const apiShift = {
                             employee_code: employeeCode,
@@ -1393,7 +1405,8 @@ $(document).ready(function() {
                             time_start: timeStart + ':00', // HH:MM:SS形式に
                             time_end: timeEnd + ':00',     // HH:MM:SS形式に
                             business_type: '事務', // デフォルト値
-                            is_violation: 0 // デフォルト値
+                            is_violation: 0, // デフォルト値
+                            cell_background_color: cellBgColor
                         };
                         
                         apiShifts.push(apiShift);
