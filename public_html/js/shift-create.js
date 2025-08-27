@@ -220,10 +220,18 @@ $(document).ready(function() {
         const month = currentDate.getMonth() + 1;
         
         try {
+            // currentShiftが空または未定義の場合はスキップ
+            if (!currentShift || Object.keys(currentShift).length === 0) {
+                console.log('シフト保存: 保存するシフトデータがありません（スキップ）');
+                return;
+            }
+            
             // APIに保存（確定シフトデータをAPI形式に変換）
             const apiShifts = [];
             Object.keys(currentShift).forEach(employeeCode => {
                 const employeeShifts = currentShift[employeeCode];
+                if (!employeeShifts) return;
+                
                 Object.keys(employeeShifts).forEach(dateString => {
                     const timeRange = employeeShifts[dateString];
                     if (timeRange && timeRange.includes('-')) {
@@ -250,6 +258,9 @@ $(document).ready(function() {
             });
             
             console.log('シフト保存: APIに保存するデータ:', apiShifts);
+            console.log('シフト保存: APIに保存するデータ件数:', apiShifts.length);
+            
+            // APIに保存（空の場合でも削除処理として実行）
             await apiClient.saveConfirmedShifts(year, month, apiShifts);
             console.log('シフト保存: API保存完了');
             
@@ -1298,11 +1309,18 @@ $(document).ready(function() {
         $('#edit-employee-name').text(employee.name);
         $('#edit-date').text(formatDateForDisplay(date));
         
-        // 時間帯マスタから選択肢を生成
+        console.log('openShiftEditModal: モーダル開始');
+        console.log('openShiftEditModal: 現在のシフト時間:', currentShiftTime);
+        
+        // 時間帯マスタから選択肢を生成（毎回最新を取得）
         await populateShiftTimeOptions();
         
+        // 値を設定（選択肢生成後に実行）
         $('#edit-shift-time').val(currentShiftTime);
         $('#edit-cell-background').val(currentBgColor);
+        
+        console.log('openShiftEditModal: 設定した値 - 時間:', currentShiftTime, ', 色:', currentBgColor);
+        console.log('openShiftEditModal: 実際の選択値 - 時間:', $('#edit-shift-time').val(), ', 色:', $('#edit-cell-background').val());
         
         editingCell = { employeeCode: employeeCode, date: date };
         

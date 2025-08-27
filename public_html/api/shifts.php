@@ -297,10 +297,26 @@ function saveConfirmedShifts($db, $input) {
         sendErrorResponse('shiftsは配列である必要があります');
     }
     
+    // 空の配列の場合は削除処理のみ実行
     if (empty($input['shifts'])) {
-        error_log('shiftsが空の配列です');
-        sendJsonResponse(['message' => '削除のみ実行されました（シフトデータなし）']);
-        return;
+        error_log('shiftsが空の配列です - 削除処理のみ実行');
+        
+        try {
+            $db->beginTransaction();
+            
+            // 既存データ削除のみ実行
+            $stmt = $db->prepare("DELETE FROM confirmed_shifts WHERE year = :year AND month = :month");
+            $stmt->execute(['year' => $input['year'], 'month' => $input['month']]);
+            
+            $db->commit();
+            sendJsonResponse(['message' => 'シフトデータをクリアしました']);
+            return;
+        } catch (PDOException $e) {
+            $db->rollBack();
+            error_log('Confirmed shifts clear error: ' . $e->getMessage());
+            sendErrorResponse('シフトデータのクリアに失敗しました', 500);
+            return;
+        }
     }
     
     error_log('処理するシフト件数: ' . count($input['shifts']));
