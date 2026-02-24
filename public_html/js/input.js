@@ -1,14 +1,16 @@
 $(document).ready(function() {
     let currentDate = new Date();
     let currentUser = null;
-    
+
     // ログインチェック
     checkLogin();
-    
+
     // 初期表示
     async function initialize() {
         console.log('=== 初期化開始 ===');
         await renderCalendar();
+        await loadOthersShifts();
+        initSidebar();
         console.log('=== 初期化完了 ===');
     }
     initialize();
@@ -19,14 +21,16 @@ $(document).ready(function() {
         currentDate.setMonth(currentDate.getMonth() - 1);
         console.log('新しい表示月:', currentDate.getFullYear(), currentDate.getMonth() + 1);
         await renderCalendar();
+        await loadOthersShifts();
         console.log('前月移動完了');
     });
-    
+
     $('#next-month, #next-month-mobile').on('click', async function() {
         console.log('=== 次月ボタンクリック ===');
         currentDate.setMonth(currentDate.getMonth() + 1);
         console.log('新しい表示月:', currentDate.getFullYear(), currentDate.getMonth() + 1);
         await renderCalendar();
+        await loadOthersShifts();
         console.log('次月移動完了');
     });
     
@@ -567,5 +571,164 @@ $(document).ready(function() {
                 customContainer.find('.timepicker').val('');
             }
         });
+    }
+
+    // ========================================
+    // サイドバー機能（他の従業員のシフト表示）
+    // ========================================
+
+    // サイドバー初期化
+    function initSidebar() {
+        const sidebar = $('#others-shift-sidebar');
+        const openBtn = $('#sidebar-open-btn');
+        const closeBtn = $('#sidebar-toggle');
+        const overlay = $('#sidebar-overlay');
+
+        // サイドバーを閉じる
+        closeBtn.on('click', function() {
+            sidebar.addClass('hidden').removeClass('visible');
+            openBtn.addClass('visible');
+            overlay.removeClass('visible');
+        });
+
+        // サイドバーを開く
+        openBtn.on('click', function() {
+            sidebar.removeClass('hidden').addClass('visible');
+            openBtn.removeClass('visible');
+            overlay.addClass('visible');
+        });
+
+        // オーバーレイクリックで閉じる（モバイル）
+        overlay.on('click', function() {
+            sidebar.addClass('hidden').removeClass('visible');
+            openBtn.addClass('visible');
+            overlay.removeClass('visible');
+        });
+
+        // PCではサイドバーを開いた状態にする
+        if (window.innerWidth > 768) {
+            sidebar.removeClass('hidden');
+            openBtn.removeClass('visible');
+        } else {
+            sidebar.addClass('hidden');
+            openBtn.addClass('visible');
+        }
+
+        // ウィンドウリサイズ時の処理
+        $(window).on('resize', function() {
+            if (window.innerWidth > 768) {
+                sidebar.removeClass('hidden').removeClass('visible');
+                openBtn.removeClass('visible');
+                overlay.removeClass('visible');
+            } else {
+                if (!sidebar.hasClass('visible')) {
+                    sidebar.addClass('hidden');
+                    openBtn.addClass('visible');
+                }
+            }
+        });
+    }
+
+    // 他の従業員のシフト希望を読み込む（日付優先表示）
+    async function loadOthersShifts() {
+        const contentDiv = $('#others-shift-content');
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
+
+        contentDiv.html('<p class="loading-text">読み込み中...</p>');
+
+        try {
+            const allRequests = await apiClient.getAllShiftRequests(year, month);
+            console.log('他の従業員のシフト希望:', allRequests);
+
+            // 自分以外のデータをフィルタリング
+            const othersData = allRequests.filter(emp =>
+                emp.employee_code !== currentUser.username &&
+                emp.employee_code !== `emp${currentUser.username}`
+            );
+
+            if (othersData.length === 0) {
+                contentDiv.html('<p class="no-data-message">他の従業員のシフト希望はありません</p>');
+                return;
+            }
+
+            // 日付ごとにデータを整理
+            const byDate = {};
+            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+            othersData.forEach(emp => {
+                if (emp.requests && emp.requests.length > 0) {
+                    emp.requests.forEach(req => {
+                        const day = req.day;
+                        if (!byDate[day]) {
+                            byDate[day] = [];
+                        }
+
+                        let valueText = '';
+                        let valueClass = '';
+
+                        if (req.is_off_requested) {
+                            valueClass = 'off';
+                            valueText = '休み';
+                        } else if (req.preferred_time_start && req.preferred_time_end) {
+                            valueClass = 'time';
+                            const start = req.preferred_time_start.substring(0, 5);
+                            const end = req.preferred_time_end.substring(0, 5);
+                            valueText = `${start}-${end}`;
+                        }
+
+                        if (valueText) {
+                            byDate[day].push({
+                                name: emp.employee_name || emp.employee_code,
+                                value: valueText,
+                                valueClass: valueClass
+                            });
+                        }
+                    });
+                }
+            });
+
+            // 日付の昇順でソート
+            const sortedDays = Object.keys(byDate).map(Number).sort((a, b) => a - b);
+
+            if (sortedDays.length === 0) {
+                contentDiv.html('<p class="no-data-message">他の従業員のシフト希望はありません</p>');
+                return;
+            }
+
+            // HTMLを生成（日付優先）
+            let html = '';
+
+            sortedDays.forEach(day => {
+                const date = new Date(year, month - 1, day);
+                const dayOfWeek = dayNames[date.getDay()];
+
+                html += `<div class="date-shift-card">`;
+                html += `<div class="date-header">${day}日(${dayOfWeek})</div>`;
+                html += `<div class="shift-list">`;
+
+                byDate[day].forEach(item => {
+                    html += `<div class="shift-item">`;
+                    html += `<span class="employee-name-small">${escapeHtml(item.name)}</span>`;
+                    html += `<span class="shift-value ${item.valueClass}">${item.value}</span>`;
+                    html += `</div>`;
+                });
+
+                html += `</div></div>`;
+            });
+
+            contentDiv.html(html);
+
+        } catch (error) {
+            console.error('他の従業員シフト取得エラー:', error);
+            contentDiv.html('<p class="no-data-message">データの取得に失敗しました</p>');
+        }
+    }
+
+    // HTMLエスケープ
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 });

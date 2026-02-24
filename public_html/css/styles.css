@@ -240,12 +240,288 @@ body {
     font-size: 14px;
 }
 
+/* サイドバー（input.html用） */
+.input-page-container {
+    display: flex;
+    gap: 20px;
+    max-width: 1400px;
+}
+
+.input-page-container .main-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    height: fit-content;
+    max-height: calc(100vh - 120px);
+    position: sticky;
+    top: 20px;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.sidebar.hidden {
+    transform: translateX(-100%);
+    opacity: 0;
+    position: absolute;
+    pointer-events: none;
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    background: #2c3e50;
+    color: white;
+    border-radius: 8px 8px 0 0;
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: normal;
+}
+
+.sidebar-toggle {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 5px;
+    line-height: 1;
+}
+
+.sidebar-toggle:hover {
+    opacity: 0.8;
+}
+
+.sidebar-content {
+    padding: 15px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.sidebar-content .loading-text {
+    color: #7f8c8d;
+    text-align: center;
+    padding: 20px 0;
+}
+
+.sidebar-open-btn {
+    display: none;
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #2c3e50;
+    color: white;
+    border: none;
+    padding: 10px 8px;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    writing-mode: vertical-rl;
+    font-size: 12px;
+    z-index: 100;
+}
+
+.sidebar-open-btn.visible {
+    display: block;
+}
+
+.sidebar-open-btn:hover {
+    background: #34495e;
+}
+
+/* 従業員シフト表示 */
+.employee-shift-card {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.employee-shift-card:last-child {
+    margin-bottom: 0;
+}
+
+.employee-shift-card .employee-name {
+    font-weight: bold;
+    color: #2c3e50;
+    font-size: 13px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.employee-shift-card .shift-list {
+    font-size: 11px;
+    color: #555;
+}
+
+.employee-shift-card .shift-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    border-bottom: 1px dotted #e9ecef;
+}
+
+.employee-shift-card .shift-item:last-child {
+    border-bottom: none;
+}
+
+.employee-shift-card .shift-date {
+    color: #7f8c8d;
+}
+
+.employee-shift-card .shift-value {
+    font-weight: 500;
+}
+
+.employee-shift-card .shift-value.off {
+    color: #e74c3c;
+}
+
+.employee-shift-card .shift-value.time {
+    color: #27ae60;
+}
+
+.no-data-message {
+    color: #7f8c8d;
+    text-align: center;
+    padding: 20px 0;
+    font-size: 13px;
+}
+
+/* 日付優先表示のスタイル */
+.date-shift-card {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+}
+
+.date-shift-card:last-child {
+    margin-bottom: 0;
+}
+
+.date-shift-card .date-header {
+    font-weight: bold;
+    color: #2c3e50;
+    font-size: 13px;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.date-shift-card .shift-list {
+    font-size: 12px;
+}
+
+.date-shift-card .shift-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px dotted #eee;
+}
+
+.date-shift-card .shift-item:last-child {
+    border-bottom: none;
+}
+
+.date-shift-card .employee-name-small {
+    color: #555;
+    flex: 1;
+}
+
+.date-shift-card .shift-value {
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+.date-shift-card .shift-value.off {
+    color: #e74c3c;
+}
+
+.date-shift-card .shift-value.time {
+    color: #27ae60;
+}
+
 /* レスポンシブ */
 @media (max-width: 768px) {
+    /* サイドバーをモバイルでは非表示（オーバーレイ形式に） */
+    .input-page-container {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 280px;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+        z-index: 1000;
+        transform: translateX(-100%);
+        opacity: 1;
+    }
+
+    .sidebar.visible {
+        transform: translateX(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .sidebar.hidden {
+        transform: translateX(-100%);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .sidebar-content {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .sidebar-header {
+        border-radius: 0;
+    }
+
+    .sidebar-open-btn {
+        display: block;
+    }
+
+    /* サイドバーオーバーレイ背景 */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+
+    .sidebar-overlay.visible {
+        display: block;
+    }
+
     .container {
         padding: 10px;
     }
-    
+
     .card {
         padding: 15px;
         margin-bottom: 15px;

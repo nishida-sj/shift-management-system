@@ -281,6 +281,11 @@ class ApiClient {
     }
 
     // 重複削除 - 上記のshift-conditions-api.php版を使用
+
+    // 全従業員のシフト希望取得
+    async getAllShiftRequests(year, month) {
+        return this.get('/all-shift-requests.php', { year, month });
+    }
 }
 
 // データ形式変換ユーティリティ

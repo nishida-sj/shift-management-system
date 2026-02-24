@@ -1,10 +1,12 @@
 $(document).ready(function() {
     let currentDate = new Date();
+    currentDate.setMonth(currentDate.getMonth() + 1); // デフォルトで翌月を表示
     let employees = [];
     let eventMaster = [];
     let monthlyEvents = {};
     let currentShift = {};
     let shiftCellBackgrounds = {};
+    let allShiftRequests = {}; // 全従業員のシフト希望（休み希望の黄色表示用）
     let shiftStatus = 'draft';
     let editingCell = null;
     
@@ -120,6 +122,33 @@ $(document).ready(function() {
             console.log('シフト作成: 取得した行事数:', eventMaster.length);
             console.log('シフト作成: 取得した月間行事予定:', Object.keys(monthlyEvents).length);
             
+            // 全従業員のシフト希望を取得（休み希望の黄色表示用）
+            try {
+                const allReqs = await apiClient.getAllShiftRequests(year, month);
+                allShiftRequests = {};
+                allReqs.forEach(emp => {
+                    if (emp.requests && emp.requests.length > 0) {
+                        emp.requests.forEach(req => {
+                            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(req.day).padStart(2, '0')}`;
+                            if (!allShiftRequests[emp.employee_code]) {
+                                allShiftRequests[emp.employee_code] = {};
+                            }
+                            if (req.is_off_requested == 1) {
+                                allShiftRequests[emp.employee_code][dateStr] = 'off';
+                            } else if (req.preferred_time_start && req.preferred_time_end) {
+                                const start = req.preferred_time_start.substring(0, 5);
+                                const end = req.preferred_time_end.substring(0, 5);
+                                allShiftRequests[emp.employee_code][dateStr] = `${start}-${end}`;
+                            }
+                        });
+                    }
+                });
+                console.log('シフト作成: 全シフト希望データ取得完了:', Object.keys(allShiftRequests).length, '人分');
+            } catch (reqError) {
+                console.warn('シフト作成: シフト希望データ取得失敗:', reqError);
+                allShiftRequests = {};
+            }
+
             // APIから確定シフトと状態を取得
             const [apiShifts, apiStatus] = await Promise.all([
                 apiClient.getConfirmedShifts(year, month).catch(() => []),
@@ -200,7 +229,10 @@ $(document).ready(function() {
             } else {
                 console.log('シフト作成: エラー処理 - APIから取得済みの色情報を保持');
             }
-            
+
+            // エラー時はシフト希望データを空にする
+            allShiftRequests = {};
+
             showError('データ取得に失敗しました。ローカルデータを使用します。');
         }
     }
@@ -375,15 +407,21 @@ $(document).ready(function() {
             orderedEmployees.forEach(employee => {
                 const shift = currentShift[employee.code] ? currentShift[employee.code][dateString] : '';
                 const shiftDisplay = formatShiftDisplay(shift);
-                
+
                 // 条件違反チェック（同期版を使用）
                 const isViolation = checkShiftViolationSync(employee, dateString, shift);
                 const violationStyle = isViolation ? 'color: red; font-weight: bold;' : '';
-                
-                // セル背景色を取得
-                const cellBgColor = shiftCellBackgrounds[employee.code] ? shiftCellBackgrounds[employee.code][dateString] : '';
+
+                // セル背景色を取得（手動設定 > 休み希望黄色 > デフォルト）
+                let cellBgColor = shiftCellBackgrounds[employee.code] ? shiftCellBackgrounds[employee.code][dateString] : '';
+
+                // 手動で背景色が設定されていない場合、休み希望日は黄色にする
+                if (!cellBgColor && allShiftRequests[employee.code] && allShiftRequests[employee.code][dateString] === 'off') {
+                    cellBgColor = 'yellow';
+                }
+
                 const bgStyle = getCellBackgroundStyle(cellBgColor);
-                
+
                 tableHtml += `<td class="shift-cell" data-employee="${employee.code}" data-date="${dateString}" style="cursor: pointer; text-align: center; ${violationStyle} ${bgStyle}">${shiftDisplay}</td>`;
             });
             
@@ -1718,7 +1756,7 @@ $(document).ready(function() {
     function getCellBackgroundStyle(colorCode) {
         const colors = {
             'orange': 'background-color: #fff3cd;',
-            'yellow': 'background-color: #fffbf0;',
+            'yellow': 'background-color: #fff9c4;',
             'green': 'background-color: #d4edda;',
             'blue': 'background-color: #cce7ff;',
             'pink': 'background-color: #f8d7da;'
@@ -1963,49 +2001,79 @@ $(document).ready(function() {
         return timeString.replace(/^(\d{2}:\d{2}):\d{2}$/, '$1');
     }
 
-    // サイドバーにシフト希望を表示
+    // サイドバーにシフト希望を表示（日付優先）
     async function loadShiftRequestsSidebar() {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth() + 1;
-        
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
         try {
             const response = await fetch(`/api/all-shift-requests.php?year=${year}&month=${month}`);
             const shiftRequests = await response.json();
-            
+
             let sidebarHtml = '';
-            
+
             if (shiftRequests.length === 0) {
                 sidebarHtml = '<p style="color: #666; text-align: center; padding: 20px;">シフト希望はありません</p>';
             } else {
+                // 日付ごとにデータを整理
+                const byDate = {};
+
                 shiftRequests.forEach(emp => {
-                    if (emp.requests.length > 0) {
-                        sidebarHtml += `
-                            <div style="margin-bottom: 20px; border-bottom: 1px solid #dee2e6; padding-bottom: 15px;">
-                                <h4 style="color: #495057; font-size: 14px; margin-bottom: 8px;">
-                                    ${emp.employee_name} (${emp.business_type})
-                                </h4>
-                        `;
-                        
+                    if (emp.requests && emp.requests.length > 0) {
                         emp.requests.forEach(req => {
-                            const requestType = req.is_off_requested ? 
-                                '<span style="color: #dc3545; font-weight: bold;">休み</span>' :
-                                `<span style="color: #007bff;">${formatTimeHHMM(req.preferred_time_start) || ''}-${formatTimeHHMM(req.preferred_time_end) || ''}</span>`;
-                            
+                            const day = req.day;
+                            if (!byDate[day]) {
+                                byDate[day] = [];
+                            }
+
+                            const requestType = req.is_off_requested ?
+                                { text: '休み', class: 'off' } :
+                                { text: `${formatTimeHHMM(req.preferred_time_start) || ''}-${formatTimeHHMM(req.preferred_time_end) || ''}`, class: 'time' };
+
+                            if (requestType.text && requestType.text !== '-') {
+                                byDate[day].push({
+                                    name: emp.employee_name,
+                                    businessType: emp.business_type,
+                                    value: requestType.text,
+                                    valueClass: requestType.class
+                                });
+                            }
+                        });
+                    }
+                });
+
+                // 日付の昇順でソート
+                const sortedDays = Object.keys(byDate).map(Number).sort((a, b) => a - b);
+
+                if (sortedDays.length === 0) {
+                    sidebarHtml = '<p style="color: #666; text-align: center; padding: 20px;">シフト希望はありません</p>';
+                } else {
+                    sortedDays.forEach(day => {
+                        const date = new Date(year, month - 1, day);
+                        const dayOfWeek = dayNames[date.getDay()];
+
+                        sidebarHtml += `<div class="date-shift-card">`;
+                        sidebarHtml += `<div class="date-header">${day}日(${dayOfWeek})</div>`;
+                        sidebarHtml += `<div class="shift-list">`;
+
+                        byDate[day].forEach(item => {
+                            const valueColor = item.valueClass === 'off' ? '#dc3545' : '#007bff';
                             sidebarHtml += `
-                                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; padding: 2px 0;">
-                                    <span>${req.day}日</span>
-                                    <span>${requestType}</span>
+                                <div class="shift-item">
+                                    <span class="employee-name-small">${item.name}</span>
+                                    <span style="color: ${valueColor}; font-weight: 500;">${item.value}</span>
                                 </div>
                             `;
                         });
-                        
-                        sidebarHtml += '</div>';
-                    }
-                });
+
+                        sidebarHtml += `</div></div>`;
+                    });
+                }
             }
-            
+
             $('#shift-requests-content').html(sidebarHtml);
-            
+
         } catch (error) {
             console.error('シフト希望読み込みエラー:', error);
             $('#shift-requests-content').html('<p style="color: #dc3545; text-align: center; padding: 20px;">読み込みエラー</p>');

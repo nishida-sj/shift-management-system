@@ -14,7 +14,28 @@
         <h1>シフト管理システム - シフト希望入力</h1>
     </div>
 
-    <div class="container">
+    <div class="container input-page-container">
+        <!-- サイドバー: 他の従業員のシフト -->
+        <aside class="sidebar" id="others-shift-sidebar">
+            <div class="sidebar-header">
+                <h3>他の従業員のシフト希望</h3>
+                <button class="sidebar-toggle" id="sidebar-toggle" title="サイドバーを閉じる">&times;</button>
+            </div>
+            <div class="sidebar-content" id="others-shift-content">
+                <p class="loading-text">読み込み中...</p>
+            </div>
+        </aside>
+
+        <!-- サイドバー開くボタン（閉じた時用） -->
+        <button class="sidebar-open-btn" id="sidebar-open-btn" title="他の従業員のシフトを表示">
+            <span>他の人</span>
+        </button>
+
+        <!-- モバイル用オーバーレイ -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <!-- メインコンテンツ -->
+        <div class="main-content">
         <div class="card">
             <!-- PC用の元レイアウト -->
             <div class="header-section" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -85,6 +106,7 @@
                 <p><strong>・土日祝日：</strong> 背景色が薄いピンクの日は休日です</p>
             </div>
         </div>
+        </div><!-- /.main-content -->
     </div>
 
     <script src="js/data-manager.js"></script>

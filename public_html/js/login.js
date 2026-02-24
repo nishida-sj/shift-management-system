@@ -27,32 +27,30 @@ $(document).ready(function() {
         try {
             // API認証処理
             const response = await apiClient.login(username, password);
-            
-            if (response.success) {
-                // ログイン成功
-                const userData = {
-                    userType: response.user_type,
-                    username: response.user_type === 'admin' ? response.username : response.employee_code,
-                    name: response.name || response.username,
-                    business_type: response.business_type || null,
-                    loginTime: new Date().toISOString()
-                };
-                
-                // ローカルストレージに保存
-                localStorage.setItem('shiftApp_user', JSON.stringify(userData));
-                
-                // リダイレクト
-                if (response.user_type === 'admin') {
-                    window.location.href = 'admin.html';
-                } else {
-                    window.location.href = 'input.html';
-                }
+
+            // ログイン成功
+            const userData = {
+                userType: response.user_type,
+                username: response.user_type === 'admin' ? response.username : response.employee_code,
+                name: response.name || response.username,
+                business_type: response.business_type || null,
+                loginTime: new Date().toISOString()
+            };
+
+            // ローカルストレージに保存
+            localStorage.setItem('shiftApp_user', JSON.stringify(userData));
+
+            // リダイレクト
+            if (response.user_type === 'admin') {
+                window.location.href = 'admin.html';
             } else {
-                showError('ユーザー名またはパスワードが正しくありません。');
+                window.location.href = 'input.html';
             }
         } catch (error) {
             console.error('ログインエラー:', error);
-            showError('ログイン処理中にエラーが発生しました。');
+            // APIからのエラーメッセージがあればそれを表示
+            const message = error.message || 'ログイン処理中にエラーが発生しました。';
+            showError(message);
         }
     });
     

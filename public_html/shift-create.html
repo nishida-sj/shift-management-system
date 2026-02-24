@@ -169,7 +169,7 @@
             font-size: 8px !important;
             margin: 0 !important;
             padding: 0 !important;
-            overflow: hidden !important;
+            overflow: visible !important;
         }
         
         .header, .btn, #shift-status, #success-message, #error-message,
@@ -311,11 +311,11 @@
             break-inside: avoid !important;
         }
         
-        /* テーブル全体の高さを制限 */
+        /* テーブル全体 - 高さ制限なし（31日まで表示するため） */
         .shift-table-container,
         #shift-table-container {
-            max-height: 250mm !important;
-            overflow: hidden !important;
+            max-height: none !important;
+            overflow: visible !important;
         }
         
         /* 色設定を印刷用に調整（カラー対応） */
@@ -329,10 +329,10 @@
             print-color-adjust: exact !important;
         }
         
-        .table td[style*="background-color: #fffbf0"],
-        .calendar-table td[style*="background-color: #fffbf0"],
-        .shift-table td[style*="background-color: #fffbf0"] {
-            background-color: #fffbf0 !important; /* 黄色 */
+        .table td[style*="background-color: #fff9c4"],
+        .calendar-table td[style*="background-color: #fff9c4"],
+        .shift-table td[style*="background-color: #fff9c4"] {
+            background-color: #fff9c4 !important; /* 黄色 */
             -webkit-print-color-adjust: exact !important;
             color-adjust: exact !important;
             print-color-adjust: exact !important;

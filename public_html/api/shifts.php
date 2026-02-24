@@ -356,10 +356,16 @@ function saveConfirmedShifts($db, $input) {
         $stmt = $db->prepare("DELETE FROM confirmed_shifts WHERE year = :year AND month = :month");
         $stmt->execute(['year' => $input['year'], 'month' => $input['month']]);
         
-        // カラム存在チェック
+        // カラム存在チェック（なければ自動追加）
         $columnCheck = $db->query("SHOW COLUMNS FROM confirmed_shifts LIKE 'cell_background_color'");
         $hasColorColumn = $columnCheck->rowCount() > 0;
-        
+
+        if (!$hasColorColumn) {
+            $db->exec("ALTER TABLE confirmed_shifts ADD COLUMN cell_background_color VARCHAR(50) DEFAULT NULL");
+            $hasColorColumn = true;
+            error_log('cell_background_colorカラムを自動追加しました');
+        }
+
         // 新データ挿入（カラム存在に応じてSQL変更）
         if ($hasColorColumn) {
             $sql = "INSERT INTO confirmed_shifts (employee_code, year, month, day, time_start, time_end, business_type, is_violation, cell_background_color) 
