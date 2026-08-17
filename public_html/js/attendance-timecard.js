@@ -10,6 +10,8 @@ $(document).ready(function() {
     }
 
     const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+    const NO_BREAK_CODE = '21'; // 事由「休憩なし」
+    const BREAK_MINUTES = 30;   // 休憩なしの申告がない日に差し引く休憩時間
 
     let employees = [];   // 従業員マスタ
     let recordMap = {};   // { employee_code: { 'YYYY-MM-DD': record } }
@@ -183,6 +185,7 @@ $(document).ready(function() {
 
         let workDays = 0;
         let totalMinutes = 0;
+        let breakDeductedDays = 0; // 休憩30分を差し引いた日数
         let rows = '';
 
         days.forEach(date => {
@@ -200,6 +203,13 @@ $(document).ready(function() {
                 if (rawOut >= rawIn) {
                     minutes = roundOut(rawOut) - roundIn(rawIn);
                     if (minutes < 0) minutes = 0; // 丸めで逆転する短時間勤務は0扱い
+
+                    // 「休憩なし」の申告がない日は休憩30分を差し引く
+                    if (!isNoBreak(r)) {
+                        minutes -= BREAK_MINUTES;
+                        if (minutes < 0) minutes = 0;
+                        breakDeductedDays++;
+                    }
                 }
                 // 日跨ぎ等（退勤 < 出勤）は集計しない
             }
@@ -247,6 +257,10 @@ $(document).ready(function() {
                     出勤日数: <strong>${workDays}日</strong>
                     <span style="margin-left:20px;">合計時間: <strong>${formatHours(totalMinutes)}</strong>（${totalMinutes}分）</span>
                 </div>
+                <div style="font-size:12px; color:#34495e; margin-top:6px; border-top:1px solid #dfe4ea; padding-top:6px;">
+                    備考: 休憩がない場合（事由「休憩なし」）は休憩時間を差し引かず、それ以外の日は休憩時間30分を差し引いています（${breakDeductedDays}日分）。
+                    時間は15分単位で丸めています（出勤は切り上げ／退勤は切り捨て）。
+                </div>
             </div>`;
     }
 
@@ -270,6 +284,11 @@ $(document).ready(function() {
         const h = Math.floor(minutes / 60);
         const m = minutes % 60;
         return `${h}:${String(m).padStart(2, '0')}`;
+    }
+
+    // 「休憩なし」の申告がある日か
+    function isNoBreak(record) {
+        return !!record && String(record.reason) === NO_BREAK_CODE;
     }
 
     // 事由コード → ラベル
