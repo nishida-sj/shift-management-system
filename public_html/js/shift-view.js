@@ -2,7 +2,26 @@ $(document).ready(function() {
     let currentDate = new Date();
     let employees = [];
     let currentShift = {};
+    let shiftCellBackgrounds = {};
     let shiftStatus = 'draft';
+
+    // セル背景色スタイルを取得（shift-create.js と同じ定義）
+    function getCellBackgroundStyle(colorCode) {
+        const colors = {
+            'orange': 'background-color: #fff3cd;',
+            'yellow': 'background-color: #fff9c4;',
+            'green': 'background-color: #d4edda;',
+            'blue': 'background-color: #cce7ff;',
+            'pink': 'background-color: #f8d7da;'
+        };
+        return colors[colorCode] || '';
+    }
+
+    // 従業員・日付からセル背景色スタイルを取得
+    function getCellStyleFor(employeeCode, dateString) {
+        const colorCode = shiftCellBackgrounds[employeeCode] ? shiftCellBackgrounds[employeeCode][dateString] : '';
+        return getCellBackgroundStyle(colorCode);
+    }
     
     // 初期表示
     initialize();
@@ -75,6 +94,7 @@ $(document).ready(function() {
             
             // 確定シフトデータをローカル形式に変換
             currentShift = {};
+            shiftCellBackgrounds = {};
             console.log('確定シフト閲覧: APIシフトデータ詳細:', {
                 type: typeof apiShifts,
                 isArray: Array.isArray(apiShifts),
@@ -90,17 +110,26 @@ $(document).ready(function() {
                     // ネストした構造で格納: currentShift[employeeCode][dateString] = "timeStart-timeEnd"
                     if (!currentShift[shift.employee_code]) {
                         currentShift[shift.employee_code] = {};
+                        shiftCellBackgrounds[shift.employee_code] = {};
                     }
-                    
+
                     // 日付文字列を生成 (YYYY-MM-DD形式)
                     const dateString = `${shift.year}-${String(shift.month).padStart(2, '0')}-${String(shift.day).padStart(2, '0')}`;
-                    
+
                     // 時間範囲文字列を生成 (HH:MM-HH:MM形式)
-                    const timeStart = shift.time_start.substring(0, 5); // HH:MM:SS -> HH:MM
-                    const timeEnd = shift.time_end.substring(0, 5);     // HH:MM:SS -> HH:MM
-                    currentShift[shift.employee_code][dateString] = `${timeStart}-${timeEnd}`;
-                    
-                    console.log(`確定シフト閲覧: 設定 ${shift.employee_code}[${dateString}] = "${timeStart}-${timeEnd}"`);
+                    // 色だけを設定した空セルは time_start / time_end がNULLなので空文字にする
+                    let timeRange = '';
+                    if (shift.time_start && shift.time_end) {
+                        const timeStart = shift.time_start.substring(0, 5); // HH:MM:SS -> HH:MM
+                        const timeEnd = shift.time_end.substring(0, 5);     // HH:MM:SS -> HH:MM
+                        timeRange = `${timeStart}-${timeEnd}`;
+                    }
+                    currentShift[shift.employee_code][dateString] = timeRange;
+
+                    // セル背景色を保持（シフト作成画面で設定した色を確定シフトにも反映する）
+                    shiftCellBackgrounds[shift.employee_code][dateString] = shift.cell_background_color || '';
+
+                    console.log(`確定シフト閲覧: 設定 ${shift.employee_code}[${dateString}] = "${timeRange}" (色: ${shift.cell_background_color || 'なし'})`);
                 });
             } else {
                 console.warn('確定シフト閲覧: APIシフトデータが配列ではないか、空です');
@@ -123,6 +152,7 @@ $(document).ready(function() {
             const month = currentDate.getMonth() + 1;
             
             currentShift = dataManager.getConfirmedShift(year, month);
+            shiftCellBackgrounds = {}; // ローカルデータには色情報がないためクリア
             shiftStatus = dataManager.getShiftStatus(year, month);
             
             console.log('確定シフト閲覧: フォールバック - ローカルデータを使用');
@@ -219,7 +249,10 @@ $(document).ready(function() {
                 const isViolation = checkShiftViolation(employee, dateString, shift);
                 const violationStyle = isViolation ? 'color: red; font-weight: bold;' : '';
                 
-                tableHtml += `<td style="text-align: center; ${violationStyle}">${shiftDisplay}</td>`;
+                // シフト作成画面で設定したセル背景色を反映
+                const cellBgStyle = getCellStyleFor(employee.code, dateString);
+
+                tableHtml += `<td style="text-align: center; ${violationStyle}${cellBgStyle}">${shiftDisplay}</td>`;
             });
             
             tableHtml += '</tr>';
@@ -783,8 +816,14 @@ $(document).ready(function() {
                 // 条件違反チェック
                 const isViolation = shift ? checkShiftViolation(employee, dateString, shift) : false;
                 const violationClass = isViolation ? ' violation' : '';
-                
-                tableHtml += `<td class="employee-column${violationClass}">${shiftDisplay}</td>`;
+
+                // シフト作成画面で設定したセル背景色を反映（印刷時も色が出るようにする）
+                const cellBgColor = getCellStyleFor(employee.code, dateString);
+                const cellBgStyle = cellBgColor
+                    ? ` style="${cellBgColor} -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;"`
+                    : '';
+
+                tableHtml += `<td class="employee-column${violationClass}"${cellBgStyle}>${shiftDisplay}</td>`;
             });
             
             tableHtml += '</tr>';

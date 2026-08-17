@@ -10,6 +10,15 @@ $(document).ready(function() {
         showSuccess('ログアウトしました。');
     }
 
+    // ユーザー種別に応じてログイン先プルダウンを表示
+    $('#user-type').on('change', function() {
+        if ($(this).val() === 'employee') {
+            $('#destination-group').show();
+        } else {
+            $('#destination-group').hide();
+        }
+    });
+
     // ログインフォームの送信処理
     $('#login-form').on('submit', async function(e) {
         e.preventDefault();
@@ -28,12 +37,18 @@ $(document).ready(function() {
             // API認証処理
             const response = await apiClient.login(username, password);
 
+            // 従業員のログイン先（打刻 / シフト希望入力）
+            const destination = response.user_type === 'employee'
+                ? ($('#login-destination').val() || 'shift')
+                : null;
+
             // ログイン成功
             const userData = {
                 userType: response.user_type,
                 username: response.user_type === 'admin' ? response.username : response.employee_code,
                 name: response.name || response.username,
                 business_type: response.business_type || null,
+                destination: destination,
                 loginTime: new Date().toISOString()
             };
 
@@ -43,6 +58,8 @@ $(document).ready(function() {
             // リダイレクト
             if (response.user_type === 'admin') {
                 window.location.href = 'admin.html';
+            } else if (destination === 'timecard') {
+                window.location.href = 'timecard.html';
             } else {
                 window.location.href = 'input.html';
             }
@@ -89,6 +106,8 @@ $(document).ready(function() {
             if (now - loginTime < 24 * 60 * 60 * 1000) {
                 if (user.userType === 'admin') {
                     window.location.href = 'admin.html';
+                } else if (user.destination === 'timecard') {
+                    window.location.href = 'timecard.html';
                 } else {
                     window.location.href = 'input.html';
                 }

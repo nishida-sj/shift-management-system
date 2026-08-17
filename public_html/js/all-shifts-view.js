@@ -4,7 +4,20 @@ $(document).ready(function() {
     let confirmedShifts = {};
     let shiftStatus = 'draft';
     let monthlyEvents = {};
-    
+
+    // セル背景色スタイルを取得（shift-create.js と同じ定義）
+    function getCellBackgroundStyle(colorCode) {
+        const colors = {
+            'orange': 'background-color: #fff3cd;',
+            'yellow': 'background-color: #fff9c4;',
+            'green': 'background-color: #d4edda;',
+            'blue': 'background-color: #cce7ff;',
+            'pink': 'background-color: #f8d7da;'
+        };
+        return colors[colorCode] || '';
+    }
+
+
     // 初期表示
     async function initialize() {
         await loadData();
@@ -67,7 +80,8 @@ $(document).ready(function() {
                         time_start: shift.time_start,
                         time_end: shift.time_end,
                         is_violation: shift.is_violation,
-                        business_type: shift.business_type
+                        business_type: shift.business_type,
+                        cell_background_color: shift.cell_background_color
                     };
                 });
             }
@@ -168,7 +182,13 @@ $(document).ready(function() {
                     cellContent = '-';
                     cellStyle += ' color: #999;';
                 }
-                
+
+                // シフト作成画面で設定したセル背景色を最後に適用（既定の色より優先させる）
+                const customBgStyle = getCellBackgroundStyle(shift ? shift.cell_background_color : '');
+                if (customBgStyle) {
+                    cellStyle += ' ' + customBgStyle;
+                }
+
                 tableHtml += `<td style="${cellStyle}">${cellContent}</td>`;
             });
             

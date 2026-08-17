@@ -169,14 +169,15 @@ function handlePost($db) {
         error_log('business_types: ' . json_encode($business_types, JSON_UNESCAPED_UNICODE));
         error_log('business_type: ' . $business_type);
         
-        $sql = "INSERT INTO employees (employee_code, name, business_type, business_types, password, shift_priority, available_days, 
-                preferred_time_start, preferred_time_end, weekly_schedule, work_limit_per_day, work_limit_per_month) 
-                VALUES (:employee_code, :name, :business_type, :business_types, :password, :shift_priority, :available_days, 
+        $sql = "INSERT INTO employees (employee_code, attendance_code, name, business_type, business_types, password, shift_priority, available_days,
+                preferred_time_start, preferred_time_end, weekly_schedule, work_limit_per_day, work_limit_per_month)
+                VALUES (:employee_code, :attendance_code, :name, :business_type, :business_types, :password, :shift_priority, :available_days,
                 :preferred_time_start, :preferred_time_end, :weekly_schedule, :work_limit_per_day, :work_limit_per_month)";
-        
+
         $stmt = $db->prepare($sql);
         $stmt->execute([
             'employee_code' => $input['employee_code'],
+            'attendance_code' => $input['attendance_code'] ?? null,
             'name' => $input['name'],
             'business_type' => $business_type,
             'business_types' => json_encode($business_types, JSON_UNESCAPED_UNICODE),
@@ -254,14 +255,15 @@ function handlePut($db) {
             error_log('business_type: ' . $business_type);
         }
         
-        $sql = "UPDATE employees SET name = :name, shift_priority = :shift_priority,
-                available_days = :available_days, preferred_time_start = :preferred_time_start, 
+        $sql = "UPDATE employees SET name = :name, attendance_code = :attendance_code, shift_priority = :shift_priority,
+                available_days = :available_days, preferred_time_start = :preferred_time_start,
                 preferred_time_end = :preferred_time_end, weekly_schedule = :weekly_schedule,
-                work_limit_per_day = :work_limit_per_day, work_limit_per_month = :work_limit_per_month, 
+                work_limit_per_day = :work_limit_per_day, work_limit_per_month = :work_limit_per_month,
                 updated_at = CURRENT_TIMESTAMP";
-        
+
         $params = [
             'employee_code' => $input['employee_code'],
+            'attendance_code' => $input['attendance_code'] ?? null,
             'name' => $input['name'],
             'shift_priority' => $input['shift_priority'] ?? 0,
             'available_days' => isset($input['available_days']) ? json_encode($input['available_days'], JSON_UNESCAPED_UNICODE) : null,

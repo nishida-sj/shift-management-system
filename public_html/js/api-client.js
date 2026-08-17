@@ -91,6 +91,45 @@ class ApiClient {
         return this.delete('/employees.php', { employee_code });
     }
 
+    // 勤怠（打刻）
+    async getAttendanceByDate(employee_code, date) {
+        return this.get('/attendance.php', { employee_code, date });
+    }
+
+    async getMonthlyAttendance(year, month, employee_code = null) {
+        const params = { year, month };
+        if (employee_code) params.employee_code = employee_code;
+        return this.get('/attendance.php', params);
+    }
+
+    // 期間指定（日単位）の勤怠取得
+    async getAttendanceRange(start, end, employee_code = null) {
+        const params = { start, end };
+        if (employee_code) params.employee_code = employee_code;
+        return this.get('/attendance.php', params);
+    }
+
+    async punch(employee_code, type, reason = null) {
+        return this.post('/attendance.php', { employee_code, type, reason });
+    }
+
+    async updateAttendance(record) {
+        return this.put('/attendance.php', record);
+    }
+
+    // 勤怠 打刻修正申請
+    async getAttendanceRequests(params = {}) {
+        return this.get('/attendance-requests.php', params);
+    }
+
+    async createAttendanceRequest(request) {
+        return this.post('/attendance-requests.php', request);
+    }
+
+    async reviewAttendanceRequest(id, status, admin_comment = null) {
+        return this.put('/attendance-requests.php', { id, status, admin_comment });
+    }
+
     // 行事マスタ
     async getEvents() {
         return this.get('/events.php');
@@ -322,6 +361,7 @@ class DataConverter {
         
         return {
             employee_code: localEmployee.code,
+            attendance_code: localEmployee.attendanceCode || null, // 勤怠用コード
             name: localEmployee.name,
             business_type: businessType, // 後方互換性
             business_types: localEmployee.businessTypes, // 新しい複数業務区分
@@ -409,6 +449,7 @@ class DataConverter {
         
         return {
             code: apiEmployee.employee_code,
+            attendanceCode: apiEmployee.attendance_code || '', // 勤怠用コード
             name: apiEmployee.name,
             businessTypes: businessTypes,
             password: apiEmployee.password,

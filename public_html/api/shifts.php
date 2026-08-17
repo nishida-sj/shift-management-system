@@ -337,10 +337,11 @@ function saveConfirmedShifts($db, $input) {
                 year INT NOT NULL,
                 month INT NOT NULL,
                 day INT NOT NULL,
-                time_start TIME NOT NULL,
-                time_end TIME NOT NULL,
+                time_start TIME NULL,
+                time_end TIME NULL,
                 business_type VARCHAR(50) DEFAULT '事務',
                 is_violation TINYINT DEFAULT 0,
+                cell_background_color VARCHAR(50) DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_year_month (year, month),
@@ -364,6 +365,17 @@ function saveConfirmedShifts($db, $input) {
             $db->exec("ALTER TABLE confirmed_shifts ADD COLUMN cell_background_color VARCHAR(50) DEFAULT NULL");
             $hasColorColumn = true;
             error_log('cell_background_colorカラムを自動追加しました');
+        }
+
+        // 色だけを設定した空セル（勤務時間なし）を保存できるよう、time_start/time_endをNULL許可に揃える
+        // 旧バージョンの自動作成テーブルはNOT NULLで作られているため
+        foreach (['time_start', 'time_end'] as $timeColumn) {
+            $timeCheck = $db->query("SHOW COLUMNS FROM confirmed_shifts LIKE '{$timeColumn}'");
+            $timeInfo = $timeCheck->fetch(PDO::FETCH_ASSOC);
+            if ($timeInfo && strtoupper($timeInfo['Null']) === 'NO') {
+                $db->exec("ALTER TABLE confirmed_shifts MODIFY COLUMN {$timeColumn} TIME NULL");
+                error_log("{$timeColumn}カラムをNULL許可に変更しました");
+            }
         }
 
         // 新データ挿入（カラム存在に応じてSQL変更）

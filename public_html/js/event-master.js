@@ -1,7 +1,9 @@
 $(document).ready(function() {
+    console.log('event-master.js: ready開始');
+    console.log('event-master.js: apiClient=', typeof apiClient, ', dataConverter=', typeof dataConverter);
     let currentEvents = [];
     let editingIndex = -1;
-    
+
     // 時間帯マスタを格納する変数
     let masterTimeSlots = [];
     
@@ -96,8 +98,11 @@ $(document).ready(function() {
     // 行事一覧を読み込み
     async function loadEvents() {
         try {
+            console.log('event-master.js: loadEvents開始');
             const apiEvents = await apiClient.getEvents();
+            console.log('event-master.js: API応答:', apiEvents);
             currentEvents = apiEvents.map(event => dataConverter.eventFromApi(event));
+            console.log('event-master.js: 変換後:', currentEvents);
             renderEventList();
         } catch (error) {
             console.error('行事データ取得エラー:', error);
@@ -369,4 +374,7 @@ $(document).ready(function() {
             $('#error-message').fadeOut();
         }, 5000);
     }
+
+    // ページ初期化を実行
+    initializePage();
 });

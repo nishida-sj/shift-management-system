@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム - 打刻</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/data-manager.js"></script>
+    <script src="js/api-client.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>シフト管理システム - 打刻</h1>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 id="current-user" class="user-name" style="color: #2c3e50;">従業員</h2>
+                <div>
+                    <a href="input.html" class="btn btn-primary" style="margin-right: 10px;">シフト希望入力</a>
+                    <a href="login.html?logout=true" class="btn btn-secondary">ログアウト</a>
+                </div>
+            </div>
+
+            <!-- 現在時刻 -->
+            <div style="text-align: center; padding: 20px; background: #eef6ff; border: 1px solid #cfe2ff; border-radius: 8px; margin-bottom: 20px;">
+                <div id="current-date" style="font-size: 18px; color: #34495e; margin-bottom: 6px;">--</div>
+                <div id="current-time" style="font-size: 56px; font-weight: bold; color: #2c3e50; line-height: 1.1;">--:--:--</div>
+            </div>
+
+            <!-- 打刻ボタン -->
+            <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 20px;">
+                <button type="button" id="punch-in-btn" class="btn btn-success" style="font-size: 20px; padding: 18px 40px;">出勤</button>
+                <button type="button" id="punch-out-btn" class="btn btn-primary" style="font-size: 20px; padding: 18px 40px;">退勤</button>
+            </div>
+
+            <!-- 事由 -->
+            <div class="form-group" style="max-width: 420px; margin: 0 auto 15px auto;">
+                <label for="punch-reason">事由（任意）</label>
+                <select id="punch-reason" class="form-control">
+                    <option value="">事由なし</option>
+                    <option value="21">休憩なし</option>
+                </select>
+            </div>
+
+            <div id="timecard-message" class="alert" style="display: none; max-width: 420px; margin: 0 auto 15px auto;"></div>
+
+            <!-- 本日の打刻状況 -->
+            <div id="timecard-today" style="text-align: center; font-size: 16px; color: #34495e; padding-top: 10px; border-top: 1px solid #eee;">
+                読み込み中...
+            </div>
+        </div>
+
+        <!-- 打刻修正の申請 -->
+        <div class="card" id="request-form-card">
+            <h3 style="color: #2c3e50; margin: 0 0 15px 0;">打刻の修正申請</h3>
+            <p style="font-size: 12px; color: #7f8c8d; margin-bottom: 15px;">
+                打刻を忘れた場合や時刻が違う場合はこちらから申請してください。管理者が承認すると打刻に反映されます。
+                下の勤務・打刻表の「日」をクリックすると、その日の内容が入力されます。
+            </p>
+
+            <div id="request-message" class="alert" style="display: none; margin-bottom: 15px;"></div>
+
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 15px;">
+                <div class="form-group" style="margin: 0;">
+                    <label for="request-date">対象日</label>
+                    <input type="date" id="request-date" class="form-control">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label for="request-clock-in">出勤時刻</label>
+                    <input type="time" id="request-clock-in" class="form-control">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label for="request-clock-out">退勤時刻</label>
+                    <input type="time" id="request-clock-out" class="form-control">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label for="request-break">事由</label>
+                    <select id="request-break" class="form-control">
+                        <option value="0">事由なし</option>
+                        <option value="1">休憩なし</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="request-reason">申請理由</label>
+                <input type="text" id="request-reason" class="form-control" maxlength="255"
+                       placeholder="例: 打刻を忘れたため">
+            </div>
+
+            <button type="button" id="request-submit-btn" class="btn btn-success">申請する</button>
+
+            <h4 style="color: #2c3e50; margin: 25px 0 10px 0;">申請の状況</h4>
+            <div id="request-list-container"></div>
+        </div>
+
+        <!-- 当月の勤務・打刻 -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 id="month-title" style="color: #2c3e50; margin: 0;">当月の勤務・打刻</h3>
+                <div>
+                    <button type="button" id="prev-month" class="btn btn-secondary">前月</button>
+                    <button type="button" id="next-month" class="btn btn-secondary">次月</button>
+                </div>
+            </div>
+            <p style="font-size: 12px; color: #7f8c8d; margin-bottom: 12px;">
+                「シフト」は予定の開始-終了、「打刻」は実際の出勤-退勤です。
+                「日」をクリックすると、その日の修正申請ができます。
+            </p>
+            <div id="month-table-container"></div>
+        </div>
+    </div>
+
+    <script src="js/timecard.js"></script>
+</body>
+</html>

@@ -2,10 +2,24 @@ $(document).ready(function() {
     let currentDate = new Date();
     let currentUser = null;
     let currentShift = {};
+    let shiftCellBackgrounds = {};
     let shiftStatus = 'draft';
     let eventMaster = [];
     let monthlyEvents = {};
-    
+
+    // セル背景色スタイルを取得（shift-create.js と同じ定義）
+    function getCellBackgroundStyle(colorCode) {
+        const colors = {
+            'orange': 'background-color: #fff3cd;',
+            'yellow': 'background-color: #fff9c4;',
+            'green': 'background-color: #d4edda;',
+            'blue': 'background-color: #cce7ff;',
+            'pink': 'background-color: #f8d7da;'
+        };
+        return colors[colorCode] || '';
+    }
+
+
     // ログインチェック
     checkLogin();
     
@@ -102,31 +116,49 @@ $(document).ready(function() {
             console.log(`employee-shift-view: API経由でデータ読み込み開始 ${year}/${month}`);
             
             // API経由でデータを取得
-            const [apiEvents, apiMonthlyEvents, apiShift] = await Promise.all([
+            const [apiEvents, apiMonthlyEvents, apiShifts, apiStatus] = await Promise.all([
                 apiClient.getEvents(),
                 apiClient.getMonthlyEvents(year, month),
-                apiClient.getShift(year, month)
+                apiClient.getConfirmedShifts(year, month),
+                apiClient.getShiftStatus(year, month)
             ]);
-            
+
             // データを変換
             eventMaster = dataConverter.convertEvents(apiEvents);
             monthlyEvents = dataConverter.convertMonthlyEvents(apiMonthlyEvents);
-            
-            console.log('employee-shift-view: API経由シフトデータ:', apiShift);
-            
-            if (apiShift && apiShift.shift_data && apiShift.status) {
-                currentShift = JSON.parse(apiShift.shift_data);
-                shiftStatus = apiShift.status;
-                console.log('employee-shift-view: 確定シフトデータ取得成功');
-                console.log('employee-shift-view: シフトステータス:', shiftStatus);
-                console.log('employee-shift-view: 現在ユーザー:', currentUser.username);
-                console.log('employee-shift-view: 現在ユーザーのシフト:', currentShift[currentUser.username]);
-            } else {
-                console.log('employee-shift-view: 確定シフトデータなし、初期化');
-                currentShift = {};
-                shiftStatus = 'draft';
+
+            console.log('employee-shift-view: API経由シフトデータ:', apiShifts);
+
+            // 確定シフトデータをローカル形式に変換
+            currentShift = {};
+            shiftCellBackgrounds = {};
+            if (apiShifts && Array.isArray(apiShifts)) {
+                apiShifts.forEach(shift => {
+                    if (!currentShift[shift.employee_code]) {
+                        currentShift[shift.employee_code] = {};
+                        shiftCellBackgrounds[shift.employee_code] = {};
+                    }
+
+                    // 日付文字列を生成 (YYYY-MM-DD形式)
+                    const dateString = `${shift.year}-${String(shift.month).padStart(2, '0')}-${String(shift.day).padStart(2, '0')}`;
+
+                    // 色だけを設定した空セルは time_start / time_end がNULLなので空文字にする
+                    let timeRange = '';
+                    if (shift.time_start && shift.time_end) {
+                        timeRange = `${shift.time_start.substring(0, 5)}-${shift.time_end.substring(0, 5)}`;
+                    }
+                    currentShift[shift.employee_code][dateString] = timeRange;
+
+                    // セル背景色を保持
+                    shiftCellBackgrounds[shift.employee_code][dateString] = shift.cell_background_color || '';
+                });
             }
-            
+
+            shiftStatus = apiStatus && apiStatus.is_confirmed === 1 ? 'confirmed' : 'draft';
+            console.log('employee-shift-view: シフトステータス:', shiftStatus);
+            console.log('employee-shift-view: 現在ユーザー:', currentUser.username);
+            console.log('employee-shift-view: 現在ユーザーのシフト:', currentShift[currentUser.username]);
+
         } catch (error) {
             console.error('employee-shift-view: API経由データ読み込みエラー:', error);
             // フォールバック：dataManagerを使用
@@ -138,6 +170,7 @@ $(document).ready(function() {
             
             monthlyEvents = dataManager.getMonthlyEvents(year, month);
             currentShift = dataManager.getConfirmedShift(year, month);
+            shiftCellBackgrounds = {}; // ローカルデータには色情報がないためクリア
             shiftStatus = dataManager.getShiftStatus(year, month);
         }
     }
@@ -203,7 +236,11 @@ $(document).ready(function() {
             tableHtml += `<td style="text-align: center; font-weight: bold;">${day}</td>`;
             tableHtml += `<td style="text-align: center;">${dayNames[dayOfWeek]}</td>`;
             tableHtml += `<td style="text-align: center; color: #e67e22;">${eventName}</td>`;
-            tableHtml += `<td style="text-align: center; ${shiftStyle}">${shiftDisplay}</td>`;
+            // シフト作成画面で設定したセル背景色を反映
+            const userColors = shiftCellBackgrounds[currentUser.username] || {};
+            const cellBgStyle = getCellBackgroundStyle(userColors[dateString]);
+
+            tableHtml += `<td style="text-align: center; ${shiftStyle}${cellBgStyle}">${shiftDisplay}</td>`;
             tableHtml += '</tr>';
         }
         

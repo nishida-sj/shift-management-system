@@ -65,6 +65,16 @@ $(document).ready(function() {
     $(document).on('click', '.remove-day-time-btn', function() {
         $(this).closest('.day-time-row').remove();
     });
+
+    // 終日チェック切り替え（動的要素用）
+    $(document).on('change', '.all-day-check', function() {
+        const row = $(this).closest('.day-time-row');
+        const isAllDay = $(this).is(':checked');
+        row.find('.day-start-time, .day-end-time').prop('disabled', isAllDay);
+        if (isAllDay) {
+            row.find('.day-start-time, .day-end-time').val('');
+        }
+    });
     
     // データを読み込み
     async function loadData() {
@@ -107,7 +117,7 @@ $(document).ready(function() {
     // 従業員一覧を描画
     function renderEmployeeList() {
         let html = '<table class="table"><thead><tr>';
-        html += '<th>従業員コード</th><th>氏名</th><th>業務区分</th><th>シフト優先</th><th>出勤可能曜日・時間</th><th>操作</th>';
+        html += '<th>従業員コード</th><th>勤怠コード</th><th>氏名</th><th>業務区分</th><th>シフト優先</th><th>出勤可能曜日・時間</th><th>操作</th>';
         html += '</tr></thead><tbody>';
         
         currentEmployees.forEach((employee, index) => {
@@ -120,6 +130,7 @@ $(document).ready(function() {
             html += `
                 <tr>
                     <td>${employee.code}</td>
+                    <td>${employee.attendanceCode || '-'}</td>
                     <td>${employee.name}</td>
                     <td>${businessTypeText}</td>
                     <td>${shiftPriorityText}</td>
@@ -183,26 +194,6 @@ $(document).ready(function() {
     function openModal(title) {
         $('#modal-title').text(title);
         $('#employee-modal').show();
-        
-        // モーダルを開くたびに最新の時間帯マスタを反映
-        updateExistingTimeSlots();
-    }
-    
-    // 既存の時間帯選択肢を更新
-    function updateExistingTimeSlots() {
-        const timeSlots = getTimeSlots();
-        
-        $('.day-time-select').each(function() {
-            const currentValue = $(this).val();
-            let options = '<option value="">選択してください</option>';
-            
-            timeSlots.forEach(time => {
-                const selected = time === currentValue ? 'selected' : '';
-                options += `<option value="${time}" ${selected}>${time}</option>`;
-            });
-            
-            $(this).html(options);
-        });
     }
     
     // モーダルを閉じる
@@ -213,6 +204,7 @@ $(document).ready(function() {
     // フォームをクリア
     function clearForm() {
         $('#emp-code').val('').prop('readonly', false);
+        $('#emp-attendance-code').val('');
         $('#emp-name').val('');
         $('#emp-password').val('');
         $('#shift-priority').prop('checked', false);
@@ -240,6 +232,7 @@ $(document).ready(function() {
             openModal('従業員情報編集');
             
             $('#emp-code').val(fullEmployee.code).prop('readonly', true);
+            $('#emp-attendance-code').val(fullEmployee.attendanceCode || '');
             $('#emp-name').val(fullEmployee.name);
             $('#emp-password').val(detailEmployee.password || ''); // APIから直接取得
             $('#shift-priority').prop('checked', fullEmployee.shiftPriority || false);
@@ -271,6 +264,7 @@ $(document).ready(function() {
             openModal('従業員情報編集');
             
             $('#emp-code').val(employee.code).prop('readonly', true);
+            $('#emp-attendance-code').val(employee.attendanceCode || '');
             $('#emp-name').val(employee.name);
             $('#emp-password').val(''); // パスワードは空に
             $('#shift-priority').prop('checked', employee.shiftPriority || false);
@@ -451,103 +445,50 @@ $(document).ready(function() {
         console.log('=== 週間スケジュール初期化完了 ===');
     }
     
-    // 時間帯オプションをシフト条件設定から取得
-    function getTimeSlots() {
-        if (typeof dataManager !== 'undefined' && dataManager.getShiftConditions) {
-            const conditions = dataManager.getShiftConditions();
-            const timeSlots = conditions.timeSlots || [
-                '9:00-13:00', '9:30-14:00', '9:30-16:00', '10:00-14:00',
-                '10:00-16:00', '13:00-17:00', '14:00-18:00', '9:00-17:00'
-            ];
-            return timeSlots;
-        }
-        // フォールバック用の固定値
-        console.log('dataManagerが利用できません。フォールバック値を使用します。');
-        return [
-            '9:00-13:00', '9:30-14:00', '9:30-16:00', '10:00-14:00', 
-            '10:00-16:00', '13:00-17:00', '14:00-18:00', '9:00-17:00'
-        ];
+    // 時間を HH:MM（ゼロ埋め）形式に正規化（input[type=time]用）
+    function toHHMM(timeString) {
+        if (!timeString) return '';
+        const parts = timeString.split(':');
+        const hours = String(parseInt(parts[0], 10)).padStart(2, '0');
+        const minutes = (parts[1] || '00').substring(0, 2);
+        return `${hours}:${minutes}`;
     }
 
-    // 曜日の時間帯行を追加
-    // 時間形式を正規化する関数
-    function normalizeTimeFormat(timeString) {
-        if (!timeString) return '';
-        
-        // 既にHH:MM-HH:MM形式の場合はそのまま返す
-        if (/^\d{2}:\d{2}-\d{2}:\d{2}$/.test(timeString)) {
-            return timeString;
-        }
-        
-        // HH:MM:SS-HH:MM:SS → HH:MM-HH:MM に変換
-        return timeString.replace(/(\d{2}:\d{2}):\d{2}/g, '$1');
-    }
-    
+    // 曜日の時間帯行を追加（開始・終了の自由入力、または終日）
     function addDayTimeRow(day, selectedTime = '') {
-        const timeOptions = getTimeSlots();
-        const normalizedSelectedTime = normalizeTimeFormat(selectedTime);
-        
-        console.log(`=== 曜日${day} 時間帯行追加 ===`);
-        console.log(`元の時間: "${selectedTime}"`);
-        console.log(`正規化後: "${normalizedSelectedTime}"`);
-        console.log(`利用可能時間帯:`, timeOptions);
-        
-        let timeOptionsHtml = '<option value="">選択してください</option>';
-        let foundMatch = false;
-        
-        timeOptions.forEach((time, index) => {
-            const selected = time === normalizedSelectedTime ? 'selected' : '';
-            timeOptionsHtml += `<option value="${time}" ${selected}>${time}</option>`;
-            if (selected) {
-                console.log(`✓ 完全一致: "${time}" を選択状態に設定`);
-                foundMatch = true;
-            }
-            console.log(`  選択肢${index}: "${time}" ${selected ? '(選択済み)' : ''}`);
-        });
-        
-        // 完全一致しない場合は部分一致を試す
-        if (!foundMatch && normalizedSelectedTime) {
-            console.log(`完全一致なし。部分一致を試行中...`);
-            timeOptionsHtml = '<option value="">選択してください</option>';
-            
-            timeOptions.forEach(time => {
-                // 開始時間だけでも一致するかチェック
-                const startTime = normalizedSelectedTime.split('-')[0];
-                const optionStartTime = time.includes('-') ? time.split('-')[0] : time;
-                const selected = optionStartTime === startTime ? 'selected' : '';
-                timeOptionsHtml += `<option value="${time}" ${selected}>${time}</option>`;
-                if (selected) {
-                    console.log(`✓ 部分一致: "${time}" を選択状態に設定 (開始時間 ${startTime} 一致)`);
-                    foundMatch = true;
-                }
-            });
+        let isAllDay = false;
+        let startTime = '';
+        let endTime = '';
+
+        if (selectedTime === '終日') {
+            isAllDay = true;
+        } else if (selectedTime && selectedTime.includes('-')) {
+            const parts = selectedTime.split('-');
+            startTime = toHHMM(parts[0]);
+            endTime = toHHMM(parts[1]);
         }
-        
-        if (!foundMatch && normalizedSelectedTime) {
-            console.error(`❌ 曜日${day}: 時間帯 "${normalizedSelectedTime}" に一致する選択肢が見つかりません`);
-            console.log('比較詳細:');
-            timeOptions.forEach((time, idx) => {
-                console.log(`  [${idx}] "${time}" === "${normalizedSelectedTime}": ${time === normalizedSelectedTime}`);
-            });
-        }
-        
+
         const html = `
-            <div class="day-time-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
-                <select class="form-control day-time-select" style="flex: 1;">
-                    ${timeOptionsHtml}
-                </select>
+            <div class="day-time-row" style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap;">
+                    <input type="checkbox" class="all-day-check" ${isAllDay ? 'checked' : ''}>
+                    <span>終日</span>
+                </label>
+                <input type="time" class="form-control day-start-time" value="${startTime}" style="width: 120px;" ${isAllDay ? 'disabled' : ''}>
+                <span>〜</span>
+                <input type="time" class="form-control day-end-time" value="${endTime}" style="width: 120px;" ${isAllDay ? 'disabled' : ''}>
                 <button type="button" class="btn btn-secondary remove-day-time-btn">削除</button>
             </div>
         `;
-        
+
         $(`#day-${day}-times`).append(html);
-        console.log(`=== 曜日${day} 処理完了 ===`);
     }
     
     // 従業員保存
     async function saveEmployee() {
         // 入力値取得
         const code = $('#emp-code').val().trim();
+        const attendanceCode = $('#emp-attendance-code').val().trim();
         const name = $('#emp-name').val().trim();
         const password = $('#emp-password').val().trim();
         const shiftPriority = $('#shift-priority').is(':checked');
@@ -600,24 +541,49 @@ $(document).ready(function() {
             return;
         }
         
-        // 週間スケジュールを取得
+        // 週間スケジュールを取得（開始・終了の自由入力 / 終日）
         const weeklySchedule = {};
+        let timeInputError = false;
         for (let day = 0; day <= 6; day++) {
             const dayTimes = [];
-            $(`#day-${day}-times .day-time-select`).each(function() {
-                const time = $(this).val();
-                if (time && !dayTimes.includes(time)) {
-                    dayTimes.push(time);
+            $(`#day-${day}-times .day-time-row`).each(function() {
+                // 終日
+                if ($(this).find('.all-day-check').is(':checked')) {
+                    if (!dayTimes.includes('終日')) {
+                        dayTimes.push('終日');
+                    }
+                    return;
+                }
+                const start = $(this).find('.day-start-time').val();
+                const end = $(this).find('.day-end-time').val();
+                // 空行は無視
+                if (!start && !end) {
+                    return;
+                }
+                // 片方だけ／終了が開始以前はエラー
+                if (!start || !end || start >= end) {
+                    timeInputError = true;
+                    return;
+                }
+                const timeRange = `${start}-${end}`;
+                if (!dayTimes.includes(timeRange)) {
+                    dayTimes.push(timeRange);
                 }
             });
             if (dayTimes.length > 0) {
                 weeklySchedule[day] = dayTimes;
             }
         }
+
+        if (timeInputError) {
+            showError('出勤可能時間は開始・終了の両方を入力し、終了は開始より後にしてください。');
+            return;
+        }
         
         // 従業員データを作成
         const employeeData = {
             code: code,
+            attendanceCode: attendanceCode,
             name: name,
             businessTypes: employeeBusinessTypes,
             password: password,

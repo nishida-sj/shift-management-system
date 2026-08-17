@@ -173,14 +173,19 @@ $(document).ready(function() {
                     const dateString = `${shift.year}-${String(shift.month).padStart(2, '0')}-${String(shift.day).padStart(2, '0')}`;
                     
                     // 時間範囲文字列を生成 (HH:MM-HH:MM形式)
-                    const timeStart = shift.time_start.substring(0, 5); // HH:MM:SS -> HH:MM
-                    const timeEnd = shift.time_end.substring(0, 5);     // HH:MM:SS -> HH:MM
-                    currentShift[shift.employee_code][dateString] = `${timeStart}-${timeEnd}`;
-                    
+                    // 色だけを設定した空セルは time_start / time_end がNULLなので空文字にする
+                    let timeRange = '';
+                    if (shift.time_start && shift.time_end) {
+                        const timeStart = shift.time_start.substring(0, 5); // HH:MM:SS -> HH:MM
+                        const timeEnd = shift.time_end.substring(0, 5);     // HH:MM:SS -> HH:MM
+                        timeRange = `${timeStart}-${timeEnd}`;
+                    }
+                    currentShift[shift.employee_code][dateString] = timeRange;
+
                     // セル背景色を設定
                     shiftCellBackgrounds[shift.employee_code][dateString] = shift.cell_background_color || '';
-                    
-                    console.log(`シフト作成: 設定 ${shift.employee_code}[${dateString}] = "${timeStart}-${timeEnd}" (色: ${shift.cell_background_color || 'なし'})`);
+
+                    console.log(`シフト作成: 設定 ${shift.employee_code}[${dateString}] = "${timeRange}" (色: ${shift.cell_background_color || 'なし'})`);
                 });
             }
             
@@ -264,7 +269,10 @@ $(document).ready(function() {
         
         try {
             // currentShiftが空または未定義の場合でも空配列で保存（削除処理のため）
-            if (!currentShift || Object.keys(currentShift).length === 0) {
+            // ただし色だけ設定されたセルがある場合は削除せず通常の保存処理に進む
+            const hasCellColors = shiftCellBackgrounds && Object.keys(shiftCellBackgrounds).length > 0;
+            const hasRequests = allShiftRequests && Object.keys(allShiftRequests).length > 0;
+            if ((!currentShift || Object.keys(currentShift).length === 0) && !hasCellColors && !hasRequests) {
                 console.log('シフト保存: 空のシフトデータを送信（削除処理）');
                 await apiClient.saveConfirmedShifts(year, month, []);
                 console.log('シフト保存: 空データ送信完了');
@@ -272,35 +280,8 @@ $(document).ready(function() {
             }
             
             // APIに保存（確定シフトデータをAPI形式に変換）
-            const apiShifts = [];
-            Object.keys(currentShift).forEach(employeeCode => {
-                const employeeShifts = currentShift[employeeCode];
-                if (!employeeShifts) return;
-                
-                Object.keys(employeeShifts).forEach(dateString => {
-                    const timeRange = employeeShifts[dateString];
-                    if (timeRange && timeRange.includes('-')) {
-                        const [yearStr, monthStr, dayStr] = dateString.split('-');
-                        const day = parseInt(dayStr);
-                        const [timeStart, timeEnd] = timeRange.split('-');
-                        
-                        // セル背景色を取得
-                        const cellBgColor = shiftCellBackgrounds[employeeCode] ? shiftCellBackgrounds[employeeCode][dateString] : null;
-                        
-                        apiShifts.push({
-                            employee_code: employeeCode,
-                            year: year,
-                            month: month,
-                            day: day,
-                            time_start: timeStart + ':00',
-                            time_end: timeEnd + ':00',
-                            business_type: '事務',
-                            is_violation: 0,
-                            cell_background_color: cellBgColor
-                        });
-                    }
-                });
-            });
+            // 勤務時間があるセルに加え、色だけを設定した空セルも保存対象にする
+            const apiShifts = buildApiShifts(year, month);
             
             console.log('シフト保存: APIに保存するデータ:', apiShifts);
             console.log('シフト保存: APIに保存するデータ件数:', apiShifts.length);
@@ -475,9 +456,13 @@ $(document).ready(function() {
             return false;
         }
         
-        // 固定時間帯チェック
-        if (employee.conditions.weeklySchedule[dayOfWeek].includes(shift)) {
-            return false;
+        // 固定時間帯チェック（範囲包含で判定）
+        const daySchedule = employee.conditions.weeklySchedule[dayOfWeek];
+        for (const availableTime of daySchedule) {
+            if (availableTime === '終日') continue;
+            if (isTimeRangeIncluded(shift, availableTime)) {
+                return false; // 出勤可能時間の範囲内
+            }
         }
         
         // 従業員の時間帯希望チェック（カスタム入力含む）
@@ -1455,46 +1440,8 @@ $(document).ready(function() {
             console.log('シフト確定: currentShiftのキー一覧:', Object.keys(currentShift));
             
             // 確定シフトデータをAPI形式に変換
-            const apiShifts = [];
-            Object.keys(currentShift).forEach((employeeCode, empIndex) => {
-                const employeeShifts = currentShift[employeeCode];
-                console.log(`シフト確定: 従業員${empIndex + 1} "${employeeCode}"のシフト:`, employeeShifts);
-                
-                Object.keys(employeeShifts).forEach((dateString, dateIndex) => {
-                    const timeRange = employeeShifts[dateString];
-                    console.log(`シフト確定: 日付${dateIndex + 1} "${dateString}" = "${timeRange}"`);
-                    
-                    if (timeRange && timeRange.includes('-')) {
-                        // 日付文字列から年月日を抽出
-                        const [yearStr, monthStr, dayStr] = dateString.split('-');
-                        const day = parseInt(dayStr);
-                        
-                        // 時間範囲を分割
-                        const [timeStart, timeEnd] = timeRange.split('-');
-                        
-                        // セル背景色を取得
-                        const cellBgColor = shiftCellBackgrounds[employeeCode] ? shiftCellBackgrounds[employeeCode][dateString] : null;
-                        
-                        // APIデータ形式に変換
-                        const apiShift = {
-                            employee_code: employeeCode,
-                            year: year,
-                            month: month,
-                            day: day,
-                            time_start: timeStart + ':00', // HH:MM:SS形式に
-                            time_end: timeEnd + ':00',     // HH:MM:SS形式に
-                            business_type: '事務', // デフォルト値
-                            is_violation: 0, // デフォルト値
-                            cell_background_color: cellBgColor
-                        };
-                        
-                        apiShifts.push(apiShift);
-                        console.log(`シフト確定: APIデータに追加:`, apiShift);
-                    } else {
-                        console.warn(`シフト確定: 日付 "${dateString}" の時間範囲 "${timeRange}" が無効です`);
-                    }
-                });
-            });
+            // 勤務時間があるセルに加え、色だけを設定した空セルも確定対象にする
+            const apiShifts = buildApiShifts(year, month);
             
             console.log('シフト確定: API形式シフトデータ:', apiShifts);
             console.log('シフト確定: API形式シフトデータ件数:', apiShifts.length);
@@ -1752,6 +1699,77 @@ $(document).ready(function() {
         $('#shift-status').removeClass('alert-success alert-danger').addClass('alert-info').text(message).show();
     }
     
+    // 保存・確定で共通のAPI送信データを構築
+    // 勤務時間があるセルと、勤務時間はないが色だけ設定されたセルの両方を対象にする
+    function buildApiShifts(year, month) {
+        const apiShifts = [];
+        const monthPrefix = `${year}-${String(month).padStart(2, '0')}-`;
+
+        const allShifts = currentShift || {};
+        const allColors = shiftCellBackgrounds || {};
+        const allRequests = allShiftRequests || {};
+
+        // currentShift・shiftCellBackgrounds・休み希望のいずれかに現れる従業員・日付を対象にする
+        const employeeCodes = new Set([
+            ...Object.keys(allShifts),
+            ...Object.keys(allColors),
+            ...Object.keys(allRequests)
+        ]);
+
+        employeeCodes.forEach(employeeCode => {
+            const employeeShifts = allShifts[employeeCode] || {};
+            const employeeColors = allColors[employeeCode] || {};
+            const employeeRequests = allRequests[employeeCode] || {};
+
+            const dateStrings = new Set([
+                ...Object.keys(employeeShifts),
+                ...Object.keys(employeeColors),
+                ...Object.keys(employeeRequests)
+            ]);
+
+            dateStrings.forEach(dateString => {
+                // 表示中の年月以外が紛れ込んでいた場合は送らない
+                if (!dateString.startsWith(monthPrefix)) return;
+
+                const timeRange = employeeShifts[dateString];
+                const hasTime = !!(timeRange && timeRange.includes('-'));
+
+                // セル背景色を決定（手動設定 > 休み希望の黄色）
+                // 画面表示と同じルールで色を確定させ、確定シフト側にも同じ色が出るようにする
+                let cellBgColor = employeeColors[dateString] || null;
+                if (!cellBgColor && employeeRequests[dateString] === 'off') {
+                    cellBgColor = 'yellow';
+                }
+
+                // 時間も色もないセルは保存しない
+                if (!hasTime && !cellBgColor) return;
+
+                const day = parseInt(dateString.split('-')[2]);
+                let timeStart = null;
+                let timeEnd = null;
+                if (hasTime) {
+                    const [start, end] = timeRange.split('-');
+                    timeStart = start + ':00'; // HH:MM:SS形式に
+                    timeEnd = end + ':00';
+                }
+
+                apiShifts.push({
+                    employee_code: employeeCode,
+                    year: year,
+                    month: month,
+                    day: day,
+                    time_start: timeStart,
+                    time_end: timeEnd,
+                    business_type: '事務',
+                    is_violation: 0,
+                    cell_background_color: cellBgColor
+                });
+            });
+        });
+
+        return apiShifts;
+    }
+
     // セル背景色スタイルを取得
     function getCellBackgroundStyle(colorCode) {
         const colors = {
@@ -1965,9 +1983,22 @@ $(document).ready(function() {
             
             console.log('shift-create: 時間帯一覧:', timeSlots);
             console.log('shift-create: 時間帯一覧の長さ:', timeSlots.length);
-            
+
+            // 第一優先: 開始時間の早い順、第二優先: 終了時間の早い順でソート
+            const toMinutes = (t) => {
+                const [h, m] = (t || '0:0').split(':').map(Number);
+                return (h || 0) * 60 + (m || 0);
+            };
+            timeSlots = [...timeSlots].sort((a, b) => {
+                const [aStart, aEnd] = String(a).split('-');
+                const [bStart, bEnd] = String(b).split('-');
+                const startDiff = toMinutes(aStart) - toMinutes(bStart);
+                if (startDiff !== 0) return startDiff;
+                return toMinutes(aEnd) - toMinutes(bEnd);
+            });
+
             let optionsHtml = '<option value="">休み</option>';
-            
+
             // 時間帯マスタから選択肢を生成
             timeSlots.forEach((timeSlot, index) => {
                 console.log(`shift-create: 時間帯[${index}]: "${timeSlot}" (type: ${typeof timeSlot}, length: ${timeSlot ? timeSlot.length : 'N/A'})`);

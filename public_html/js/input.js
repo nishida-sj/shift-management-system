@@ -468,32 +468,11 @@ $(document).ready(function() {
                 selectElement.closest('.date-item').css('background-color', '#f5f5f5');
                 selectElement.val(savedValue === 'off' ? 'off' : ''); // 休みの場合は保持
             } else {
-                // 利用可能な時間帯を表示（「終日」対応も含む）
-                let options = '<option value="">選択なし</option><option value="off">休み</option><option value="custom">時間帯指定</option>';
-                
-                // 時間帯マスタから取得した時間帯も追加（従業員の設定との共通部分）
-                const masterTimeSlots = getMasterTimeSlots();
+                // 出勤可能日：休み／時間帯指定のみ（プリセット選択肢は廃止）
+                const options = '<option value="">選択なし</option><option value="off">休み</option><option value="custom">時間帯指定</option>';
+                // 復元ロジックの互換用（プリセットは持たないため空）
                 const availableSlots = new Set();
-                
-                // 従業員設定の時間帯を追加
-                daySchedule.forEach(time => {
-                    if (time !== '終日') {
-                        availableSlots.add(time);
-                    }
-                });
-                
-                // 「終日」設定の場合は、時間帯マスタの全時間帯を追加
-                if (daySchedule.includes('終日')) {
-                    masterTimeSlots.forEach(time => {
-                        availableSlots.add(time);
-                    });
-                }
-                
-                // 重複を排除してオプションを作成
-                Array.from(availableSlots).sort().forEach(time => {
-                    options += `<option value="${time}">${time}</option>`;
-                });
-                
+
                 selectElement.html(options);
                 
                 // 保存済みの値を復元
