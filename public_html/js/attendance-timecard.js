@@ -26,7 +26,17 @@ $(document).ready(function() {
             setPreset($(this).data('preset'));
             loadTimecards();
         });
-        $('#employee-select').on('change', render);
+
+        // 従業員チェックの操作（チェックした人だけ表示・印刷）
+        $('#employee-checks').on('change', '.emp-check', render);
+        $('#check-all-btn').on('click', function() {
+            $('.emp-check').prop('checked', true);
+            render();
+        });
+        $('#uncheck-all-btn').on('click', function() {
+            $('.emp-check').prop('checked', false);
+            render();
+        });
 
         try {
             employees = await apiClient.getEmployees() || [];
@@ -36,13 +46,22 @@ $(document).ready(function() {
             return;
         }
 
-        let opts = '<option value="">全従業員</option>';
+        // 初期状態は全員チェック
+        let checks = '';
         employees.forEach(emp => {
-            opts += `<option value="${emp.employee_code}">${escapeHtml(emp.name)}（${emp.employee_code}）</option>`;
+            checks += `<label style="font-size:14px; color:#34495e; white-space:nowrap;">
+                <input type="checkbox" class="emp-check" value="${emp.employee_code}" checked>
+                ${escapeHtml(emp.name)}（${emp.employee_code}）
+            </label>`;
         });
-        $('#employee-select').html(opts);
+        $('#employee-checks').html(checks || '<span style="color:#7f8c8d;">従業員が登録されていません。</span>');
 
         loadTimecards();
+    }
+
+    // チェックされている従業員コード
+    function checkedCodes() {
+        return $('.emp-check:checked').map(function() { return this.value; }).get();
     }
 
     // ---- 期間プリセット ----
@@ -143,13 +162,13 @@ $(document).ready(function() {
     function render() {
         if (!currentRange) return;
 
-        const selected = $('#employee-select').val();
-        const targets = selected
-            ? employees.filter(e => e.employee_code === selected)
-            : employees;
+        const selected = checkedCodes();
+        const targets = employees.filter(e => selected.indexOf(e.employee_code) !== -1);
 
         if (targets.length === 0) {
-            $('#timecard-container').html('<p style="color:#7f8c8d;">従業員が登録されていません。</p>');
+            $('#timecard-container').html(
+                '<p style="color:#7f8c8d;">表示する従業員にチェックを入れてください。</p>'
+            );
             return;
         }
 
@@ -259,9 +278,10 @@ $(document).ready(function() {
             return;
         }
 
+        // チェックされている従業員の分だけが表示されているので、そのまま印刷する
         const content = $('#timecard-container').html();
         if (!content || content.indexOf('timecard') === -1) {
-            showError('印刷する内容がありません。');
+            showError('印刷する従業員にチェックを入れてください。');
             return;
         }
 

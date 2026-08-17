@@ -25,10 +25,6 @@
 
             <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px;">
                 <div class="form-group" style="margin: 0;">
-                    <label for="employee-select">従業員</label>
-                    <select id="employee-select" class="form-control"></select>
-                </div>
-                <div class="form-group" style="margin: 0;">
                     <label for="start-date">開始日</label>
                     <input type="date" id="start-date" class="form-control">
                 </div>
@@ -48,7 +44,17 @@
                 <button class="btn btn-secondary preset-btn" data-preset="prevMonth" style="padding: 4px 10px; font-size: 12px;">前月1日〜末日</button>
             </div>
 
+            <div style="border: 1px solid #dfe4ea; border-radius: 4px; padding: 10px; margin-bottom: 15px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                    <strong style="color: #2c3e50; font-size: 14px;">表示・印刷する従業員</strong>
+                    <button id="check-all-btn" class="btn btn-secondary" style="padding: 3px 10px; font-size: 12px;">全選択</button>
+                    <button id="uncheck-all-btn" class="btn btn-secondary" style="padding: 3px 10px; font-size: 12px;">全解除</button>
+                </div>
+                <div id="employee-checks" style="display: flex; flex-wrap: wrap; gap: 8px 20px;"></div>
+            </div>
+
             <p style="font-size: 12px; color: #7f8c8d;">
+                ※チェックした従業員のみ表示・印刷されます。印刷は従業員ごとに改ページされます。<br>
                 ※「時間」は退勤−出勤の打刻時間です（休憩時間は打刻していないため差し引いていません）。
                 事由「休憩なし」が付いた日は事由欄に表示されます。
             </p>
