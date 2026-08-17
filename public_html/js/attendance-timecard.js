@@ -192,10 +192,16 @@ $(document).ready(function() {
             const inT = r && r.clock_in ? r.clock_in.substring(0, 5) : '';
             const outT = r && r.clock_out ? r.clock_out.substring(0, 5) : '';
 
+            // 時間は15分丸め（出勤=切り上げ／退勤=切り捨て）で計算する。打刻の表示はそのまま
             let minutes = null;
             if (inT && outT) {
-                minutes = toMin(outT) - toMin(inT);
-                if (minutes < 0) minutes = null; // 日跨ぎ等は集計しない
+                const rawIn = toMin(inT);
+                const rawOut = toMin(outT);
+                if (rawOut >= rawIn) {
+                    minutes = roundOut(rawOut) - roundIn(rawIn);
+                    if (minutes < 0) minutes = 0; // 丸めで逆転する短時間勤務は0扱い
+                }
+                // 日跨ぎ等（退勤 < 出勤）は集計しない
             }
             if (inT || outT) workDays++;
             if (minutes !== null) totalMinutes += minutes;
@@ -247,6 +253,16 @@ $(document).ready(function() {
     function toMin(t) {
         const [h, m] = t.split(':').map(Number);
         return h * 60 + m;
+    }
+
+    // 出勤は15分単位で切り上げ（9:25 → 9:30）
+    function roundIn(minutes) {
+        return Math.ceil(minutes / 15) * 15;
+    }
+
+    // 退勤は15分単位で切り捨て（13:49 → 13:45）
+    function roundOut(minutes) {
+        return Math.floor(minutes / 15) * 15;
     }
 
     // 分 → h:mm
