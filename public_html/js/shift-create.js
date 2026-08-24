@@ -28,6 +28,14 @@ $(document).ready(function() {
     let allShiftRequests = {}; // 全従業員のシフト希望（休み希望の黄色表示用）
     let shiftStatus = 'draft';
     let editingCell = null;
+
+    // 各種キャッシュ（loadData() で破棄するため、必ずここでまとめて宣言する。
+    // 関数の近くで let 宣言すると、初期化時の loadData() が宣言前に参照して
+    // ReferenceError（TDZ）になる）
+    let employeeOrdersCache = null;        // 従業員並び順
+    let shiftTimeOptionsHtmlCache = null;  // 編集モーダルの時間帯選択肢HTML
+    let shiftConditionsCache = null;       // シフト条件設定
+    let monthlyShiftRequestsCache = null;  // 自動作成用の当月シフト希望
     
     console.log('シフト作成: ページ読み込み開始');
     console.log('apiClient利用可能:', typeof apiClient !== 'undefined');
@@ -540,8 +548,7 @@ $(document).ready(function() {
         ) || {};
     }
 
-    // シフト条件設定のキャッシュ（1セルごとの localStorage 読み込みを避ける）
-    let shiftConditionsCache = null;
+    // シフト条件設定のキャッシュ（1セルごとの localStorage 読み込みを避ける）※宣言は先頭
     function getShiftConditionsCached() {
         if (shiftConditionsCache === null) {
             shiftConditionsCache = dataManager.getShiftConditions();
@@ -803,7 +810,6 @@ $(document).ready(function() {
     }
     
     // 当月の全従業員のシフト希望を1回だけ取得してキャッシュする（自動作成用）
-    let monthlyShiftRequestsCache = null;
     async function getMonthlyShiftRequests(targetEmployees) {
         if (monthlyShiftRequestsCache !== null) {
             return monthlyShiftRequestsCache;
@@ -1370,7 +1376,6 @@ $(document).ready(function() {
     }
     
     // 従業員を統一並び順マスタに従って並び替え
-    let employeeOrdersCache = null;
 
     async function getOrderedEmployees(employees) {
         try {
@@ -2061,7 +2066,6 @@ $(document).ready(function() {
     }
     
     // シフト時間選択肢を時間帯マスタから生成
-    let shiftTimeOptionsHtmlCache = null;
 
     async function populateShiftTimeOptions() {
         // 生成済みの選択肢があれば再利用する
