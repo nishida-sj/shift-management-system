@@ -1,4 +1,23 @@
 $(document).ready(function() {
+    // ------------------------------------------------------------------
+    // デバッグログ制御
+    // このページは1描画あたり数百〜数千行のログを出力していたため、
+    // ブラウザ（特に DevTools を開いている状態）が非常に重くなっていた。
+    // 既定では log/info/debug を無効化し、警告とエラーのみ残す。
+    // 調査したいときは、コンソールで window.SHIFT_DEBUG = true を設定して再読込する。
+    // ------------------------------------------------------------------
+    const DEBUG_LOG = (typeof window !== 'undefined' && window.SHIFT_DEBUG === true);
+    const console = DEBUG_LOG ? window.console : {
+        log: function() {},
+        info: function() {},
+        debug: function() {},
+        table: function() {},
+        group: function() {},
+        groupEnd: function() {},
+        warn: window.console.warn.bind(window.console),
+        error: window.console.error.bind(window.console)
+    };
+
     let currentDate = new Date();
     currentDate.setMonth(currentDate.getMonth() + 1); // デフォルトで翌月を表示
     let employees = [];
@@ -20,7 +39,6 @@ $(document).ready(function() {
         await renderShiftTable();
         updateStatusDisplay();
         loadNotes();
-        loadShiftRequestsSidebar();
         loadShiftRequestsSidebar();
     }
     
@@ -96,12 +114,23 @@ $(document).ready(function() {
     $('#cancel-shift-edit-btn').on('click', function() {
         closeShiftEditModal();
     });
+
+    // 時間帯変更時の警告チェック（初期化時に1回だけ登録する）
+    $('#edit-shift-time').on('change', function() {
+        checkEditWarning();
+    });
     
     // データ読み込み
     async function loadData() {
         try {
             console.log('シフト作成: データ読み込み開始');
-            
+
+            // マスタ系のキャッシュを破棄（月移動・再読込時に最新を取り直す）
+            employeeOrdersCache = null;
+            shiftTimeOptionsHtmlCache = null;
+            shiftConditionsCache = null;
+            monthlyShiftRequestsCache = null;
+
             // APIから従業員、行事マスタ、月間行事予定を取得
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth() + 1;
@@ -466,17 +495,9 @@ $(document).ready(function() {
         }
         
         // 従業員の時間帯希望チェック（カスタム入力含む）
-        // 注意: この関数は個別のセル編集時に呼ばれるため、リアルタイムでAPI取得する
-        // 将来的にはキャッシュ機構を検討
-        let requests = {};
-        try {
-            const apiRequests = await apiClient.getShiftRequests(employee.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
-            requests = dataConverter.requestsFromApi(apiRequests);
-        } catch (error) {
-            // エラー時はlocalStorageからフォールバック
-            requests = dataManager.getEmployeeRequests(employee.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
-        }
-        
+        // シフト希望は loadData() で当月分をまとめて取得済み（allShiftRequests）なので
+        // セル編集のたびにAPIを叩かない
+        const requests = getEmployeeRequestsCached(employee.code);
         const employeePreference = requests[dateString];
         
         if (employeePreference && employeePreference !== 'off' && employeePreference !== '') {
@@ -506,12 +527,34 @@ $(document).ready(function() {
         return converted;
     }
     
+    // 当月のシフト希望を従業員コードで取得（loadData でまとめて取得済みのキャッシュを使用）
+    // 見つからない場合のみ localStorage にフォールバックする
+    function getEmployeeRequestsCached(employeeCode) {
+        if (allShiftRequests && allShiftRequests[employeeCode]) {
+            return allShiftRequests[employeeCode];
+        }
+        return dataManager.getEmployeeRequests(
+            employeeCode,
+            currentDate.getFullYear(),
+            currentDate.getMonth() + 1
+        ) || {};
+    }
+
+    // シフト条件設定のキャッシュ（1セルごとの localStorage 読み込みを避ける）
+    let shiftConditionsCache = null;
+    function getShiftConditionsCached() {
+        if (shiftConditionsCache === null) {
+            shiftConditionsCache = dataManager.getShiftConditions();
+        }
+        return shiftConditionsCache;
+    }
+
     // シフト条件違反チェック（同期版 - 表描画用）
     function checkShiftViolationSync(employee, dateString, shift) {
         if (!shift) return false;
-        
+
         // シフト条件設定を取得
-        const shiftConditions = dataManager.getShiftConditions();
+        const shiftConditions = getShiftConditionsCached();
         if (!shiftConditions || !shiftConditions.warnings) {
             return false; // 設定がない場合は警告を表示しない
         }
@@ -541,8 +584,10 @@ $(document).ready(function() {
                 }
             }
             
-            // 従業員の時間帯希望チェック（localStorageのみ - 同期処理）
-            const requests = dataManager.getEmployeeRequests(employee.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
+            // 従業員の時間帯希望チェック（当月分のキャッシュを使用 - 同期処理）
+            // 以前は1セルごとに localStorage の読み込み+JSONパースが走っていたため
+            // 表全体（従業員数×日数）の描画で数百回の解析が発生していた
+            const requests = getEmployeeRequestsCached(employee.code);
             const employeePreference = requests[dateString];
             
             if (employeePreference && employeePreference !== 'off' && employeePreference !== '') {
@@ -660,7 +705,10 @@ $(document).ready(function() {
         }
         
         showInfo('シフトを自動作成中...');
-        
+
+        // 最新のシフト希望で作成するためキャッシュを破棄
+        monthlyShiftRequestsCache = null;
+
         try {
             // シフト条件設定を取得
             const shiftConditions = dataManager.getShiftConditions();
@@ -754,21 +802,62 @@ $(document).ready(function() {
         return stats;
     }
     
+    // 当月の全従業員のシフト希望を1回だけ取得してキャッシュする（自動作成用）
+    let monthlyShiftRequestsCache = null;
+    async function getMonthlyShiftRequests(targetEmployees) {
+        if (monthlyShiftRequestsCache !== null) {
+            return monthlyShiftRequestsCache;
+        }
+
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
+        const requests = {};
+
+        for (const emp of targetEmployees) {
+            try {
+                const apiRequests = await apiClient.getShiftRequests(emp.code, year, month);
+                requests[emp.code] = dataConverter.requestsFromApi(apiRequests);
+            } catch (error) {
+                requests[emp.code] = dataManager.getEmployeeRequests(emp.code, year, month) || {};
+            }
+        }
+
+        monthlyShiftRequestsCache = requests;
+        return requests;
+    }
+
+    // 希望シフトの時間内に収まらなかった配置を薄い青でマークする
+    // 例: 希望 09:00-13:00 の従業員に 09:00-13:30 を割り当てた場合
+    function markPreferenceOverflow(employeeCode, dateString, assignedTime, shiftRequests) {
+        if (!assignedTime || assignedTime === '終日') return;
+        if (!assignedTime.includes('-')) return;
+
+        const preference = (shiftRequests[employeeCode] || {})[dateString];
+
+        // 希望未提出・休み希望・終日希望は対象外
+        if (!preference || preference === 'off' || preference === '終日') return;
+        if (!String(preference).includes('-')) return;
+
+        if (!shiftCellBackgrounds[employeeCode]) {
+            shiftCellBackgrounds[employeeCode] = {};
+        }
+
+        // 希望時間に完全には収まっていない場合のみ薄い青にする
+        if (!isTimeRangeIncluded(assignedTime, preference)) {
+            shiftCellBackgrounds[employeeCode][dateString] = 'blue';
+            console.log(`  🔵 ${employeeCode} ${dateString}: 希望 ${preference} に対し ${assignedTime} を配置 → 薄い青でマーク`);
+        }
+    }
+
     // 高度な1日のシフト作成（要件に基づく）
     async function createDayShiftAdvanced(employees, dateString, event, dayOfWeek, shiftConditions, workStats) {
         console.log(`=== ${dateString} のシフト作成開始 ===`);
-        
-        // シフト希望データを事前に取得
-        const shiftRequests = {};
-        for (const emp of employees) {
-            try {
-                const apiRequests = await apiClient.getShiftRequests(emp.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
-                shiftRequests[emp.code] = dataConverter.requestsFromApi(apiRequests);
-            } catch (error) {
-                shiftRequests[emp.code] = dataManager.getEmployeeRequests(emp.code, currentDate.getFullYear(), currentDate.getMonth() + 1);
-            }
-        }
-        
+
+        // シフト希望データを取得（月内で1回だけ取得したものを使い回す）
+        // 以前は日ごとに全従業員分をAPI取得していたため、
+        // 1回の自動作成で「従業員数 × 日数」回の通信が発生していた
+        const shiftRequests = await getMonthlyShiftRequests(employees);
+
         // 条件設定に基づく利用可能従業員の絞り込み
         console.log(`=== ${dateString} 利用可能従業員の絞り込み開始 ===`);
         console.log(`総従業員数: ${employees.length}`);
@@ -851,10 +940,11 @@ $(document).ready(function() {
                             
                             if (canAssignEmployee(emp, dateString, requiredTime, shiftRequests, shiftConditions)) {
                                 currentShift[emp.code][dateString] = requiredTime;
+                                markPreferenceOverflow(emp.code, dateString, requiredTime, shiftRequests);
                                 updateWorkStats(workStats, emp.code, dateString, requiredTime);
                                 assignedCount++;
                                 assigned = true;
-                                
+
                                 console.log(`  ✅ ${emp.name}(メイン) を ${requiredTime} に配置 (${assignedCount}/${requiredCount})`);
                             } else {
                                 console.log(`  ❌ ${emp.name}(メイン) は配置不可`);
@@ -891,10 +981,11 @@ $(document).ready(function() {
                                 
                                 if (canAssignEmployee(emp, dateString, requiredTime, shiftRequests, shiftConditions)) {
                                     currentShift[emp.code][dateString] = requiredTime;
+                                    markPreferenceOverflow(emp.code, dateString, requiredTime, shiftRequests);
                                     updateWorkStats(workStats, emp.code, dateString, requiredTime);
                                     assignedCount++;
                                     assigned = true;
-                                    
+
                                     console.log(`  ✅ ${emp.name}(サブ) を ${requiredTime} に配置 (${assignedCount}/${requiredCount})`);
                                 } else {
                                     console.log(`  ❌ ${emp.name}(サブ) は配置不可`);
@@ -1279,13 +1370,18 @@ $(document).ready(function() {
     }
     
     // 従業員を統一並び順マスタに従って並び替え
+    let employeeOrdersCache = null;
+
     async function getOrderedEmployees(employees) {
         try {
             console.log('shift-create: getOrderedEmployees開始');
             console.log('shift-create: 入力従業員数:', employees.length);
-            
-            // APIから最新の並び順を取得
-            const employeeOrders = await apiClient.getEmployeeOrders();
+
+            // 並び順はデータ読み込み時に1回だけAPIから取得（描画のたびに叩かない）
+            if (employeeOrdersCache === null) {
+                employeeOrdersCache = await apiClient.getEmployeeOrders();
+            }
+            const employeeOrders = employeeOrdersCache;
             console.log('shift-create: 取得した並び順データ:', employeeOrders);
             
             const orderedEmployees = [];
@@ -1379,23 +1475,35 @@ $(document).ready(function() {
     }
     
     // 編集時の警告チェック
-    function checkEditWarning() {
-        $('#edit-shift-time').on('change', async function() {
-            const newShift = $(this).val();
-            if (!newShift) {
-                $('#warning-message').hide();
-                return;
-            }
-            
-            const employee = employees.find(emp => emp.code === editingCell.employeeCode);
-            const isViolation = await checkShiftViolation(employee, editingCell.date, newShift);
-            
-            if (isViolation) {
-                $('#warning-message').text('この設定は従業員の条件に合いません。保存しても赤字で表示されます。').show();
-            } else {
-                $('#warning-message').hide();
-            }
-        });
+    // 注意: change ハンドラの登録は初期化時の1回のみ（下部の一括登録を参照）。
+    // 以前はモーダルを開くたびに on('change') を追加していたため、
+    // セルをクリックするほどハンドラが積み上がり、時間帯を変更するたびに
+    // 過去のクリック回数分の処理とAPI通信が同時に走ってブラウザが重くなっていた。
+    async function checkEditWarning() {
+        if (!editingCell) {
+            $('#warning-message').hide();
+            return;
+        }
+
+        const newShift = $('#edit-shift-time').val();
+        if (!newShift) {
+            $('#warning-message').hide();
+            return;
+        }
+
+        const employee = employees.find(emp => emp.code === editingCell.employeeCode);
+        if (!employee) {
+            $('#warning-message').hide();
+            return;
+        }
+
+        const isViolation = await checkShiftViolation(employee, editingCell.date, newShift);
+
+        if (isViolation) {
+            $('#warning-message').text('この設定は従業員の条件に合いません。保存しても赤字で表示されます。').show();
+        } else {
+            $('#warning-message').hide();
+        }
     }
     
     // シフト編集保存
@@ -1953,11 +2061,20 @@ $(document).ready(function() {
     }
     
     // シフト時間選択肢を時間帯マスタから生成
+    let shiftTimeOptionsHtmlCache = null;
+
     async function populateShiftTimeOptions() {
+        // 生成済みの選択肢があれば再利用する
+        // （セルをクリックするたびにAPI取得＋DOM再生成を行っていたため重かった）
+        if (shiftTimeOptionsHtmlCache !== null) {
+            $('#edit-shift-time').html(shiftTimeOptionsHtmlCache);
+            return;
+        }
+
         try {
             // APIからシフト条件を取得
             console.log('shift-create: 時間帯選択肢生成開始');
-            
+
             let timeSlots = [];
             try {
                 const shiftConditions = await apiClient.getShiftConditions();
@@ -2009,6 +2126,7 @@ $(document).ready(function() {
             optionsHtml += '<option value="終日">終日</option>';
             
             console.log('shift-create: 生成されたHTML:', optionsHtml);
+            shiftTimeOptionsHtmlCache = optionsHtml;
             $('#edit-shift-time').html(optionsHtml);
             console.log('shift-create: 時間帯選択肢生成完了');
         } catch (error) {
