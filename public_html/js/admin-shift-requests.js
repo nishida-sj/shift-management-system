@@ -261,8 +261,8 @@ $(document).ready(function() {
         
         // 編集ボタンイベント
         $('.edit-request-btn').on('click', function() {
-            const employeeCode = $(this).data('employee');
-            const date = $(this).data('date');
+            const employeeCode = String($(this).attr('data-employee'));
+            const date = String($(this).attr('data-date'));
             openEditModal(employeeCode, date);
         });
     }
@@ -357,7 +357,7 @@ $(document).ready(function() {
     
     // 編集モーダル開く
     function openEditModal(employeeCode, date) {
-        const employee = employees.find(emp => emp.employee_code === employeeCode);
+        const employee = employees.find(emp => String(emp.employee_code) === String(employeeCode));
         if (!employee) {
             showError('従業員が見つかりません。');
             return;

@@ -459,8 +459,8 @@ $(document).ready(function() {
                 return;
             }
             
-            const employeeCode = $(this).data('employee');
-            const date = $(this).data('date');
+            const employeeCode = String($(this).attr('data-employee'));
+            const date = String($(this).attr('data-date'));
             await openShiftEditModal(employeeCode, date);
         });
         
@@ -1397,10 +1397,10 @@ $(document).ready(function() {
                 console.log('shift-create: 統一並び順を使用:', employeeOrders.unified);
                 
                 employeeOrders.unified.forEach(empCode => {
-                    const employee = employees.find(emp => emp.code === empCode);
-                    if (employee && !usedEmployees.has(empCode)) {
+                    const employee = employees.find(emp => String(emp.code) === String(empCode));
+                    if (employee && !usedEmployees.has(String(empCode))) {
                         orderedEmployees.push(employee);
-                        usedEmployees.add(empCode);
+                        usedEmployees.add(String(empCode));
                         console.log(`shift-create: 並び順追加: ${empCode} -> ${employee.name}`);
                     } else {
                         console.log(`shift-create: 従業員が見つからないかすでに追加済み: ${empCode}`);
@@ -1412,7 +1412,7 @@ $(document).ready(function() {
             
             // 並び順が設定されていない従業員をデフォルト順序で追加
             employees.forEach(employee => {
-                if (!usedEmployees.has(employee.code)) {
+                if (!usedEmployees.has(String(employee.code))) {
                     orderedEmployees.push(employee);
                     console.log(`shift-create: デフォルト追加: ${employee.code} -> ${employee.name}`);
                 }
@@ -1423,7 +1423,7 @@ $(document).ready(function() {
         } catch (error) {
             console.error('従業員並び順取得エラー:', error);
             // エラー時はデフォルト順序（従業員コード順）
-            return [...employees].sort((a, b) => a.code.localeCompare(b.code));
+            return [...employees].sort((a, b) => String(a.code).localeCompare(String(b.code)));
         }
     }
     
@@ -1445,7 +1445,15 @@ $(document).ready(function() {
     
     // シフト編集モーダルを開く
     async function openShiftEditModal(employeeCode, date) {
-        const employee = employees.find(emp => emp.code === employeeCode);
+        // 従業員コードは data 属性から来るため、型の違いで一致しないことがある。
+        // 数字だけのコードは jQuery の .data() が数値に変換してしまい、
+        // 厳密比較では見つからずモーダルが開かなくなっていた。
+        const employee = employees.find(emp => String(emp.code) === String(employeeCode));
+        if (!employee) {
+            console.error('openShiftEditModal: 従業員が見つかりません:', employeeCode, employees.map(emp => emp.code));
+            showError('従業員情報が見つからないため編集画面を開けません。ページを再読み込みしてください。');
+            return;
+        }
         const currentShiftTime = currentShift[employeeCode] ? currentShift[employeeCode][date] : '';
         const currentBgColor = shiftCellBackgrounds[employeeCode] ? shiftCellBackgrounds[employeeCode][date] : '';
         
@@ -1496,7 +1504,7 @@ $(document).ready(function() {
             return;
         }
 
-        const employee = employees.find(emp => emp.code === editingCell.employeeCode);
+        const employee = employees.find(emp => String(emp.code) === String(editingCell.employeeCode));
         if (!employee) {
             $('#warning-message').hide();
             return;
