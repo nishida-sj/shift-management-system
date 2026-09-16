@@ -10,6 +10,12 @@ $(document).ready(function() {
     }
 
     const employeeCode = userData.username; // = employee_code
+
+    // 事由コード（attendance_records.reason と同じ値）
+    const NO_BREAK_CODE = '21';    // 休憩なし
+    const PAID_LEAVE_CODE = '10';  // 有給（勤務しない日のため時刻の入力は不要）
+    const BREAK_MINUTES = 30;      // 休憩なしの申告がない日に差し引く休憩時間
+
     $('#current-user').text('従業員: ' + (userData.name || employeeCode));
 
     startClock();
@@ -28,6 +34,8 @@ $(document).ready(function() {
     // 申請フォームの初期値は本日
     $('#request-date').val(todayStr());
     $('#request-submit-btn').on('click', submitRequest);
+    $('#request-break').on('change', updateTimeInputState);
+    updateTimeInputState();
 
     $('#punch-in-btn').on('click', function() { punch('in'); });
     $('#punch-out-btn').on('click', function() { punch('out'); });
@@ -87,25 +95,38 @@ $(document).ready(function() {
         }
     }
 
+    // 事由が「有給」のときは時刻を入力させない（1日休みのため）
+    function updateTimeInputState() {
+        const isPaidLeave = $('#request-break').val() === PAID_LEAVE_CODE;
+        if (isPaidLeave) {
+            $('#request-clock-in').val('');
+            $('#request-clock-out').val('');
+        }
+        $('#request-clock-in, #request-clock-out').prop('disabled', isPaidLeave);
+    }
+
     // 打刻修正を申請
     async function submitRequest() {
         const workDate = $('#request-date').val();
-        const clockIn = $('#request-clock-in').val();
-        const clockOut = $('#request-clock-out').val();
-        const breakNone = $('#request-break').val() === '1' ? 1 : 0;
+        const reasonCode = $('#request-break').val();
+        const isPaidLeave = reasonCode === PAID_LEAVE_CODE;
+        const clockIn = isPaidLeave ? '' : $('#request-clock-in').val();
+        const clockOut = isPaidLeave ? '' : $('#request-clock-out').val();
         const reason = $('#request-reason').val().trim();
 
         if (!workDate) {
             showRequestMessage('対象日を選択してください。', false);
             return;
         }
-        if (!clockIn && !clockOut) {
-            showRequestMessage('出勤時刻または退勤時刻を入力してください。', false);
-            return;
-        }
-        if (clockIn && clockOut && clockIn >= clockOut) {
-            showRequestMessage('退勤時刻は出勤時刻より後にしてください。', false);
-            return;
+        if (!isPaidLeave) {
+            if (!clockIn && !clockOut) {
+                showRequestMessage('出勤時刻または退勤時刻を入力してください。', false);
+                return;
+            }
+            if (clockIn && clockOut && clockIn >= clockOut) {
+                showRequestMessage('退勤時刻は出勤時刻より後にしてください。', false);
+                return;
+            }
         }
 
         try {
@@ -114,7 +135,8 @@ $(document).ready(function() {
                 work_date: workDate,
                 clock_in: clockIn || null,
                 clock_out: clockOut || null,
-                break_none: breakNone,
+                reason_code: reasonCode || null,
+                break_none: reasonCode === NO_BREAK_CODE ? 1 : 0,
                 reason: reason || null
             });
 
@@ -122,7 +144,8 @@ $(document).ready(function() {
             $('#request-clock-in').val('');
             $('#request-clock-out').val('');
             $('#request-reason').val('');
-            $('#request-break').val('0');
+            $('#request-break').val('');
+            updateTimeInputState();
 
             await renderRequests();
             await renderMonth();
@@ -158,7 +181,7 @@ $(document).ready(function() {
             list.forEach(r => {
                 const inT = r.clock_in ? r.clock_in.substring(0, 5) : '—';
                 const outT = r.clock_out ? r.clock_out.substring(0, 5) : '—';
-                const breakLabel = Number(r.break_none) === 1 ? '休憩なし' : '事由なし';
+                const breakLabel = reasonLabel(requestReasonCode(r)) || '事由なし';
                 const comment = r.admin_comment ? `<br><small>管理者: ${escapeHtml(r.admin_comment)}</small>` : '';
 
                 html += '<tr>' +
@@ -232,7 +255,7 @@ $(document).ready(function() {
                 const d = Number(String(r.work_date).substring(8, 10));
                 // 同じ日に複数ある場合は承認済みを優先して表示する
                 if (!reqMap[d] || r.status === 'approved') {
-                    reqMap[d] = { status: r.status, break_none: Number(r.break_none) };
+                    reqMap[d] = { status: r.status, reason_code: requestReasonCode(r) };
                 }
             });
         } catch (e) {
@@ -246,6 +269,11 @@ $(document).ready(function() {
             '<th>日</th><th>曜</th><th>シフト</th><th>打刻(出勤-退勤)</th><th>事由</th><th>申請</th>' +
             '</tr></thead><tbody>';
 
+        // 当月の集計（タイムカード表示と同じ計算式）
+        let workDays = 0;
+        let totalMinutes = 0;
+        let breakDeductedDays = 0;
+
         for (let day = 1; day <= lastDay; day++) {
             const dow = new Date(year, month - 1, day).getDay();
             const weekend = (dow === 0 || dow === 6);
@@ -257,6 +285,14 @@ $(document).ready(function() {
             const attStr = (a && (a.in || a.out)) ? `${a.in || '未'}-${a.out || '未'}` : '-';
             const reason = (a && a.reason) ? reasonLabel(a.reason) : '';
             const rowStyle = weekend ? ' style="background:#fff5f5;"' : '';
+
+            // 出勤日数と実労働時間を集計する
+            if (a && (a.in || a.out)) workDays++;
+            const minutes = workMinutes(a);
+            if (minutes !== null) {
+                totalMinutes += minutes;
+                if (!isNoBreak(a)) breakDeductedDays++;
+            }
 
             // 申請が承認された内容は赤字で表示する
             const isApproved = r && r.status === 'approved';
@@ -275,6 +311,19 @@ $(document).ready(function() {
         }
 
         html += '</tbody></table>';
+
+        // 当月の合計（タイムカード表示と同じ計算式）
+        html += `
+            <div style="font-size:14px; color:#2c3e50; border-top:1px solid #dfe4ea; padding-top:10px;">
+                ${month}月の出勤日数: <strong>${workDays}日</strong>
+                <span style="margin-left:20px;">実労働時間: <strong>${formatHours(totalMinutes)}</strong>（${totalMinutes}分）</span>
+            </div>
+            <div style="font-size:12px; color:#7f8c8d; margin-top:6px;">
+                ※時間は15分単位で丸めています（出勤は切り上げ／退勤は切り捨て）。
+                事由「休憩なし」以外の日は休憩30分を差し引いています（${breakDeductedDays}日分）。
+                出勤・退勤のどちらかが未打刻の日は実労働時間に含まれません。
+            </div>`;
+
         $('#month-table-container').html(html);
 
         $('.request-day-cell').on('click', function() {
@@ -298,8 +347,9 @@ $(document).ready(function() {
         $('#request-date').val(dateStr);
         $('#request-clock-in').val(inVal);
         $('#request-clock-out').val(outVal);
-        $('#request-break').val(a && a.reason === '21' ? '1' : '0');
+        $('#request-break').val(selectableReason(a && a.reason));
         $('#request-reason').val('');
+        updateTimeInputState(); // 有給なら時刻入力を閉じる
 
         // フォームまでスクロールして、対象日が変わったことを分かるようにする
         const $form = $('#request-form-card');
@@ -320,10 +370,72 @@ $(document).ready(function() {
         );
     }
 
+    // 1日の実労働時間（分）。計算式はタイムカード表示（attendance-timecard.js）と同じ
+    // 15分丸め（出勤=切り上げ／退勤=切り捨て）のうえ、「休憩なし」以外の日は休憩30分を差し引く
+    // 出勤・退勤が揃っていない日、日跨ぎ（退勤 < 出勤）の日は集計対象外（null）
+    function workMinutes(a) {
+        if (!a || !a.in || !a.out) return null;
+
+        const rawIn = toMin(a.in);
+        const rawOut = toMin(a.out);
+        if (rawOut < rawIn) return null;
+
+        let minutes = roundOut(rawOut) - roundIn(rawIn);
+        if (minutes < 0) minutes = 0; // 丸めで逆転する短時間勤務は0扱い
+
+        if (!isNoBreak(a)) {
+            minutes -= BREAK_MINUTES;
+            if (minutes < 0) minutes = 0;
+        }
+        return minutes;
+    }
+
+    // 「休憩なし」の申告がある日か
+    function isNoBreak(a) {
+        return !!a && String(a.reason) === NO_BREAK_CODE;
+    }
+
+    // 'HH:MM' → 分
+    function toMin(t) {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    }
+
+    // 出勤は15分単位で切り上げ（9:25 → 9:30）
+    function roundIn(minutes) {
+        return Math.ceil(minutes / 15) * 15;
+    }
+
+    // 退勤は15分単位で切り捨て（13:49 → 13:45）
+    function roundOut(minutes) {
+        return Math.floor(minutes / 15) * 15;
+    }
+
+    // 分 → h:mm
+    function formatHours(minutes) {
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return `${h}:${String(m).padStart(2, '0')}`;
+    }
+
     // 事由コード → ラベル
     function reasonLabel(code) {
-        const map = { '21': '休憩なし' };
+        if (!code) return '';
+        const map = { '21': '休憩なし', '10': '有給' };
         return map[code] || code;
+    }
+
+    // 申請の事由コード（reason_code が無い旧データは break_none で判定）
+    function requestReasonCode(req) {
+        const code = req.reason_code ? String(req.reason_code) : '';
+        if (code === NO_BREAK_CODE || code === PAID_LEAVE_CODE) return code;
+        return Number(req.break_none) === 1 ? NO_BREAK_CODE : '';
+    }
+
+    // 申請フォームの事由セレクトで選べるコードだけを返す
+    function selectableReason(code) {
+        const c = code ? String(code) : '';
+        return (c === NO_BREAK_CODE || c === PAID_LEAVE_CODE) ? c : '';
     }
 
     // 申請状態 → 表示ラベル（承認済みは赤字）

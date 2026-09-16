@@ -9,6 +9,10 @@ $(document).ready(function() {
         return;
     }
 
+    // 事由コード（attendance_records.reason と同じ値）
+    const NO_BREAK_CODE = '21';   // 休憩なし
+    const PAID_LEAVE_CODE = '10'; // 有給（勤務しない日のため時刻を持たない）
+
     loadRequests();
 
     $('#reload-btn').on('click', loadRequests);
@@ -47,9 +51,12 @@ $(document).ready(function() {
             '</tr></thead><tbody>';
 
         list.forEach(r => {
+            const code = requestReasonCode(r);
             const inT = r.clock_in ? r.clock_in.substring(0, 5) : '—';
             const outT = r.clock_out ? r.clock_out.substring(0, 5) : '—';
-            const breakLabel = Number(r.break_none) === 1 ? '休憩なし' : '事由なし';
+            // 有給は時刻を持たないため、申請内容欄には事由をそのまま表示する
+            const content = code === PAID_LEAVE_CODE ? '有給（終日）' : `${inT} - ${outT}`;
+            const breakLabel = reasonLabel(code) || '事由なし';
             const isPending = r.status === 'pending';
 
             // 未承認のみ承認・却下できる
@@ -65,7 +72,7 @@ $(document).ready(function() {
             html += '<tr>' +
                 `<td style="text-align:center;">${formatDateLabel(r.work_date)}</td>` +
                 `<td>${escapeHtml(r.name || r.employee_code)}</td>` +
-                `<td style="text-align:center;">${inT} - ${outT}</td>` +
+                `<td style="text-align:center;">${content}</td>` +
                 `<td style="text-align:center;">${breakLabel}</td>` +
                 `<td>${escapeHtml(r.reason || '')}</td>` +
                 `<td style="text-align:center;">${statusLabel(r.status)}${comment}</td>` +
@@ -108,6 +115,20 @@ $(document).ready(function() {
             console.error('承認処理エラー:', e);
             showMessage(e.message || '処理に失敗しました。', false);
         }
+    }
+
+    // 事由コード → ラベル
+    function reasonLabel(code) {
+        if (!code) return '';
+        const map = { '21': '休憩なし', '10': '有給' };
+        return map[code] || code;
+    }
+
+    // 申請の事由コード（reason_code が無い旧データは break_none で判定）
+    function requestReasonCode(req) {
+        const code = req.reason_code ? String(req.reason_code) : '';
+        if (code === NO_BREAK_CODE || code === PAID_LEAVE_CODE) return code;
+        return Number(req.break_none) === 1 ? NO_BREAK_CODE : '';
     }
 
     function statusLabel(status) {

@@ -146,11 +146,11 @@ $(document).ready(function() {
         return h * 60 + m;
     }
 
-    // 事由コード → ラベル
+    // 事由コード → ラベル（出力ファイルには数字のコードをそのまま書き出す）
     function reasonLabel(code) {
         if (!code) return '';
-        const map = { '21': '休憩なし' };
-        return map[code] || code;
+        const map = { '21': '休憩なし', '10': '有給' };
+        return map[code] ? `${map[code]}（${code}）` : code;
     }
 
     // ---- kinmu.txt ダウンロード ----

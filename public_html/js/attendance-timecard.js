@@ -10,8 +10,9 @@ $(document).ready(function() {
     }
 
     const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
-    const NO_BREAK_CODE = '21'; // 事由「休憩なし」
-    const BREAK_MINUTES = 30;   // 休憩なしの申告がない日に差し引く休憩時間
+    const NO_BREAK_CODE = '21';   // 事由「休憩なし」
+    const PAID_LEAVE_CODE = '10'; // 事由「有給」（勤務しない日のため時刻を持たない）
+    const BREAK_MINUTES = 30;     // 休憩なしの申告がない日に差し引く休憩時間
 
     let employees = [];   // 従業員マスタ
     let recordMap = {};   // { employee_code: { 'YYYY-MM-DD': record } }
@@ -186,6 +187,7 @@ $(document).ready(function() {
         let workDays = 0;
         let totalMinutes = 0;
         let breakDeductedDays = 0; // 休憩30分を差し引いた日数
+        let paidLeaveDays = 0;     // 有給の日数（勤務時間は発生しない）
         let rows = '';
 
         days.forEach(date => {
@@ -215,6 +217,7 @@ $(document).ready(function() {
             }
             if (inT || outT) workDays++;
             if (minutes !== null) totalMinutes += minutes;
+            if (isPaidLeave(r)) paidLeaveDays++;
 
             // 土曜=青、日曜=赤
             let dowColor = '';
@@ -255,11 +258,13 @@ $(document).ready(function() {
                 </table>
                 <div style="font-size:14px; color:#2c3e50;">
                     出勤日数: <strong>${workDays}日</strong>
+                    <span style="margin-left:20px;">有給日数: <strong>${paidLeaveDays}日</strong></span>
                     <span style="margin-left:20px;">合計時間: <strong>${formatHours(totalMinutes)}</strong>（${totalMinutes}分）</span>
                 </div>
                 <div style="font-size:12px; color:#34495e; margin-top:6px; border-top:1px solid #dfe4ea; padding-top:6px;">
                     備考: 休憩がない場合（事由「休憩なし」）は休憩時間を差し引かず、それ以外の日は休憩時間30分を差し引いています（${breakDeductedDays}日分）。
                     時間は15分単位で丸めています（出勤は切り上げ／退勤は切り捨て）。
+                    事由「有給」の日は勤務時間が発生しないため、合計時間には含めていません。
                 </div>
             </div>`;
     }
@@ -294,8 +299,13 @@ $(document).ready(function() {
     // 事由コード → ラベル
     function reasonLabel(code) {
         if (!code) return '';
-        const map = { '21': '休憩なし' };
+        const map = { '21': '休憩なし', '10': '有給' };
         return map[code] || code;
+    }
+
+    // 「有給」の日か
+    function isPaidLeave(record) {
+        return !!record && String(record.reason) === PAID_LEAVE_CODE;
     }
 
     function escapeHtml(s) {

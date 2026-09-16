@@ -4,14 +4,20 @@
  * GET  /api/attendance-requests.php?employee_code=xxx&year=YYYY&month=MM - 従業員の月次申請一覧
  * GET  /api/attendance-requests.php?status=pending                       - 未承認の申請一覧（管理者）
  * GET  /api/attendance-requests.php?year=YYYY&month=MM                   - 月次の全申請（管理者）
- * POST /api/attendance-requests.php  { employee_code, work_date, clock_in?, clock_out?, break_none, reason? }
+ * POST /api/attendance-requests.php  { employee_code, work_date, clock_in?, clock_out?, reason_code?, break_none?, reason? }
  *      - 申請の登録（同一従業員・同一日の未承認申請がある場合は上書き）
+ *      - reason_code は事由コード（'21'=休憩なし / '10'=有給 / 未指定=事由なし）
+ *      - 有給は勤務しない日のため、出勤・退勤時刻の入力は不要
  * PUT  /api/attendance-requests.php  { id, status:'approved'|'rejected', admin_comment? }
  *      - 承認・却下（承認時は attendance_records に反映）
  */
 
 require_once 'config.php';
 date_default_timezone_set('Asia/Tokyo');
+
+// 事由コード（attendance_records.reason と同じ値をそのまま使う）
+define('REASON_NO_BREAK', '21');   // 休憩なし
+define('REASON_PAID_LEAVE', '10'); // 有給
 
 $db = Database::getInstance()->getConnection();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -40,6 +46,7 @@ function ensureRequestTable($db) {
     try {
         $check = $db->query("SHOW TABLES LIKE 'attendance_requests'");
         if ($check->rowCount() > 0) {
+            ensureReasonCodeColumn($db);
             return;
         }
 
@@ -50,6 +57,7 @@ function ensureRequestTable($db) {
             clock_in TIME NULL,
             clock_out TIME NULL,
             break_none TINYINT NOT NULL DEFAULT 0,
+            reason_code VARCHAR(10) NULL,
             reason VARCHAR(255) NULL,
             status VARCHAR(20) NOT NULL DEFAULT 'pending',
             admin_comment VARCHAR(255) NULL,
@@ -65,6 +73,54 @@ function ensureRequestTable($db) {
         error_log('attendance_requestsテーブル作成エラー: ' . $e->getMessage());
         sendErrorResponse('申請テーブルの準備に失敗しました', 500);
     }
+}
+
+/**
+ * 事由コード列が無い旧テーブルに reason_code を追加する
+ * 既存の「休憩なし」申請（break_none = 1）はコード '21' へ移行する
+ */
+function ensureReasonCodeColumn($db) {
+    try {
+        $col = $db->query("SHOW COLUMNS FROM attendance_requests LIKE 'reason_code'");
+        if ($col->rowCount() > 0) {
+            return;
+        }
+
+        $db->exec("ALTER TABLE attendance_requests ADD COLUMN reason_code VARCHAR(10) NULL AFTER break_none");
+        $stmt = $db->prepare("UPDATE attendance_requests SET reason_code = :c WHERE break_none = 1 AND reason_code IS NULL");
+        $stmt->execute(['c' => REASON_NO_BREAK]);
+        error_log('attendance_requests.reason_code列を追加しました');
+    } catch (PDOException $e) {
+        error_log('attendance_requests.reason_code列の追加エラー: ' . $e->getMessage());
+        sendErrorResponse('申請テーブルの準備に失敗しました', 500);
+    }
+}
+
+/**
+ * 入力された事由コードを取り出す
+ * reason_code が無い旧クライアントからの申請は break_none で判定する
+ */
+function normalizeReasonCode($input) {
+    $code = isset($input['reason_code']) ? trim((string)$input['reason_code']) : '';
+
+    if ($code === '') {
+        return !empty($input['break_none']) ? REASON_NO_BREAK : null;
+    }
+    if (!in_array($code, [REASON_NO_BREAK, REASON_PAID_LEAVE], true)) {
+        sendErrorResponse('事由の指定が不正です');
+    }
+    return $code;
+}
+
+/**
+ * 申請レコードの事由コード（reason_code 未設定の旧データは break_none で判定）
+ */
+function requestReasonCode($req) {
+    $code = isset($req['reason_code']) ? (string)$req['reason_code'] : '';
+    if (in_array($code, [REASON_NO_BREAK, REASON_PAID_LEAVE], true)) {
+        return $code;
+    }
+    return ((int)$req['break_none'] === 1) ? REASON_NO_BREAK : null;
 }
 
 function handleGet($db) {
@@ -121,18 +177,25 @@ function handlePost($db) {
 
     $clock_in = isset($input['clock_in']) && $input['clock_in'] !== '' ? $input['clock_in'] : null;
     $clock_out = isset($input['clock_out']) && $input['clock_out'] !== '' ? $input['clock_out'] : null;
-    $break_none = !empty($input['break_none']) ? 1 : 0;
+    $reason_code = normalizeReasonCode($input);
+    $break_none = ($reason_code === REASON_NO_BREAK) ? 1 : 0;
     $reason = isset($input['reason']) && $input['reason'] !== '' ? $input['reason'] : null;
 
-    if ($clock_in === null && $clock_out === null) {
-        sendErrorResponse('出勤時刻または退勤時刻のどちらかを入力してください');
-    }
-    if ($clock_in !== null) validateTime($clock_in);
-    if ($clock_out !== null) validateTime($clock_out);
+    if ($reason_code === REASON_PAID_LEAVE) {
+        // 有給は勤務しない日のため、時刻は受け取らない
+        $clock_in = null;
+        $clock_out = null;
+    } else {
+        if ($clock_in === null && $clock_out === null) {
+            sendErrorResponse('出勤時刻または退勤時刻のどちらかを入力してください');
+        }
+        if ($clock_in !== null) validateTime($clock_in);
+        if ($clock_out !== null) validateTime($clock_out);
 
-    // 出勤 > 退勤 の入力ミスを弾く（日をまたぐ勤務は想定しない）
-    if ($clock_in !== null && $clock_out !== null && strtotime($clock_in) >= strtotime($clock_out)) {
-        sendErrorResponse('退勤時刻は出勤時刻より後にしてください');
+        // 出勤 > 退勤 の入力ミスを弾く（日をまたぐ勤務は想定しない）
+        if ($clock_in !== null && $clock_out !== null && strtotime($clock_in) >= strtotime($clock_out)) {
+            sendErrorResponse('退勤時刻は出勤時刻より後にしてください');
+        }
     }
 
     try {
@@ -147,7 +210,7 @@ function handlePost($db) {
         if ($existing) {
             $up = $db->prepare(
                 "UPDATE attendance_requests
-                 SET clock_in = :in, clock_out = :out, break_none = :bn, reason = :r,
+                 SET clock_in = :in, clock_out = :out, break_none = :bn, reason_code = :rc, reason = :r,
                      updated_at = CURRENT_TIMESTAMP
                  WHERE id = :id"
             );
@@ -155,6 +218,7 @@ function handlePost($db) {
                 'in' => $clock_in,
                 'out' => $clock_out,
                 'bn' => $break_none,
+                'rc' => $reason_code,
                 'r' => $reason,
                 'id' => $existing['id']
             ]);
@@ -163,8 +227,8 @@ function handlePost($db) {
         }
 
         $ins = $db->prepare(
-            "INSERT INTO attendance_requests (employee_code, work_date, clock_in, clock_out, break_none, reason)
-             VALUES (:c, :d, :in, :out, :bn, :r)"
+            "INSERT INTO attendance_requests (employee_code, work_date, clock_in, clock_out, break_none, reason_code, reason)
+             VALUES (:c, :d, :in, :out, :bn, :rc, :r)"
         );
         $ins->execute([
             'c' => $input['employee_code'],
@@ -172,6 +236,7 @@ function handlePost($db) {
             'in' => $clock_in,
             'out' => $clock_out,
             'bn' => $break_none,
+            'rc' => $reason_code,
             'r' => $reason
         ]);
 
@@ -243,7 +308,8 @@ function handlePut($db) {
 /**
  * 承認された申請を attendance_records に反映する
  * 申請で未入力（NULL）の時刻は既存の打刻値を維持する
- * 休憩なしは既存仕様に合わせて reason コード '21' で表現する
+ * 事由は attendance_records.reason にコードで記録する（休憩なし='21' / 有給='10'）
+ * 有給は勤務しない日のため、既存の打刻時刻も消して1日休みとして残す
  */
 function applyToAttendance($db, $req) {
     $check = $db->prepare("SELECT * FROM attendance_records WHERE employee_code = :c AND work_date = :d");
@@ -256,9 +322,15 @@ function applyToAttendance($db, $req) {
         $record = ['clock_in' => null, 'clock_out' => null];
     }
 
-    $clock_in = $req['clock_in'] !== null ? $req['clock_in'] : $record['clock_in'];
-    $clock_out = $req['clock_out'] !== null ? $req['clock_out'] : $record['clock_out'];
-    $reason = ((int)$req['break_none'] === 1) ? '21' : null;
+    $reason = requestReasonCode($req);
+
+    if ($reason === REASON_PAID_LEAVE) {
+        $clock_in = null;
+        $clock_out = null;
+    } else {
+        $clock_in = $req['clock_in'] !== null ? $req['clock_in'] : $record['clock_in'];
+        $clock_out = $req['clock_out'] !== null ? $req['clock_out'] : $record['clock_out'];
+    }
 
     $up = $db->prepare(
         "UPDATE attendance_records
