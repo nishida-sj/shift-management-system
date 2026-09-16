@@ -27,9 +27,15 @@ $(document).ready(function() {
     let reqMap = {};
 
     // 当月の勤務・打刻表
+    // 前月・次月ボタンで月末日が繰り上がらないよう、日は1日に固定しておく
     let monthDate = new Date();
+    monthDate.setDate(1);
     renderMonth();
     renderRequests();
+
+    // 集計期間の初期値は表示中の月（1日〜末日）
+    setSummaryRangeToMonth();
+    renderSummary();
 
     // 申請フォームの初期値は本日
     $('#request-date').val(todayStr());
@@ -40,15 +46,27 @@ $(document).ready(function() {
     $('#punch-in-btn').on('click', function() { punch('in'); });
     $('#punch-out-btn').on('click', function() { punch('out'); });
 
+    // 月を切り替えたら、集計期間もその月にそろえ直す
     $('#prev-month').on('click', function() {
         monthDate.setMonth(monthDate.getMonth() - 1);
         renderMonth();
         renderRequests();
+        setSummaryRangeToMonth();
+        renderSummary();
     });
     $('#next-month').on('click', function() {
         monthDate.setMonth(monthDate.getMonth() + 1);
         renderMonth();
         renderRequests();
+        setSummaryRangeToMonth();
+        renderSummary();
+    });
+
+    // 期間を指定した集計
+    $('#summary-btn').on('click', renderSummary);
+    $('#summary-month-btn').on('click', function() {
+        setSummaryRangeToMonth();
+        renderSummary();
     });
 
     // 現在時刻の時計（ブラウザ時刻・表示用。記録はサーバー時刻）
@@ -269,11 +287,6 @@ $(document).ready(function() {
             '<th>日</th><th>曜</th><th>シフト</th><th>打刻(出勤-退勤)</th><th>事由</th><th>申請</th>' +
             '</tr></thead><tbody>';
 
-        // 当月の集計（タイムカード表示と同じ計算式）
-        let workDays = 0;
-        let totalMinutes = 0;
-        let breakDeductedDays = 0;
-
         for (let day = 1; day <= lastDay; day++) {
             const dow = new Date(year, month - 1, day).getDay();
             const weekend = (dow === 0 || dow === 6);
@@ -285,14 +298,6 @@ $(document).ready(function() {
             const attStr = (a && (a.in || a.out)) ? `${a.in || '未'}-${a.out || '未'}` : '-';
             const reason = (a && a.reason) ? reasonLabel(a.reason) : '';
             const rowStyle = weekend ? ' style="background:#fff5f5;"' : '';
-
-            // 出勤日数と実労働時間を集計する
-            if (a && (a.in || a.out)) workDays++;
-            const minutes = workMinutes(a);
-            if (minutes !== null) {
-                totalMinutes += minutes;
-                if (!isNoBreak(a)) breakDeductedDays++;
-            }
 
             // 申請が承認された内容は赤字で表示する
             const isApproved = r && r.status === 'approved';
@@ -311,24 +316,90 @@ $(document).ready(function() {
         }
 
         html += '</tbody></table>';
-
-        // 当月の合計（タイムカード表示と同じ計算式）
-        html += `
-            <div style="font-size:14px; color:#2c3e50; border-top:1px solid #dfe4ea; padding-top:10px;">
-                ${month}月の出勤日数: <strong>${workDays}日</strong>
-                <span style="margin-left:20px;">実労働時間: <strong>${formatHours(totalMinutes)}</strong>（${totalMinutes}分）</span>
-            </div>
-            <div style="font-size:12px; color:#7f8c8d; margin-top:6px;">
-                ※時間は15分単位で丸めています（出勤は切り上げ／退勤は切り捨て）。
-                事由「休憩なし」以外の日は休憩30分を差し引いています（${breakDeductedDays}日分）。
-                出勤・退勤のどちらかが未打刻の日は実労働時間に含まれません。
-            </div>`;
-
         $('#month-table-container').html(html);
 
         $('.request-day-cell').on('click', function() {
             openRequestForDay(Number($(this).data('day')));
         });
+    }
+
+    // 集計期間の入力を、表示中の月の1日〜末日にそろえる
+    function setSummaryRangeToMonth() {
+        const year = monthDate.getFullYear();
+        const month = monthDate.getMonth() + 1;
+        const lastDay = new Date(year, month, 0).getDate();
+        const mm = String(month).padStart(2, '0');
+
+        $('#summary-start').val(`${year}-${mm}-01`);
+        $('#summary-end').val(`${year}-${mm}-${String(lastDay).padStart(2, '0')}`);
+    }
+
+    // 指定期間の出勤日数と実労働時間を集計する
+    // 計算式はタイムカード表示（attendance-timecard.js）と同じ
+    async function renderSummary() {
+        const start = $('#summary-start').val();
+        const end = $('#summary-end').val();
+
+        if (!start || !end) {
+            $('#summary-container').html(
+                '<p style="color:#e74c3c; font-size:13px;">開始日と終了日を指定してください。</p>'
+            );
+            return;
+        }
+        if (start > end) {
+            $('#summary-container').html(
+                '<p style="color:#e74c3c; font-size:13px;">開始日が終了日より後になっています。</p>'
+            );
+            return;
+        }
+
+        $('#summary-container').html('<p style="color:#7f8c8d; font-size:13px;">集計中...</p>');
+
+        let records;
+        try {
+            records = await apiClient.getAttendanceRange(start, end, employeeCode) || [];
+        } catch (e) {
+            console.error('期間集計取得エラー:', e);
+            $('#summary-container').html(
+                '<p style="color:#e74c3c; font-size:13px;">集計データを取得できませんでした。</p>'
+            );
+            return;
+        }
+
+        let workDays = 0;
+        let totalMinutes = 0;
+        let breakDeductedDays = 0;
+        let paidLeaveDays = 0;
+
+        records.forEach(rec => {
+            const a = {
+                in: rec.clock_in ? rec.clock_in.substring(0, 5) : '',
+                out: rec.clock_out ? rec.clock_out.substring(0, 5) : '',
+                reason: rec.reason || ''
+            };
+
+            if (a.in || a.out) workDays++;
+            if (isPaidLeaveDay(a)) paidLeaveDays++;
+
+            const minutes = workMinutes(a);
+            if (minutes !== null) {
+                totalMinutes += minutes;
+                if (!isNoBreak(a)) breakDeductedDays++;
+            }
+        });
+
+        $('#summary-container').html(`
+            <div style="font-size:14px; color:#2c3e50;">
+                <span style="margin-right:20px; color:#34495e;">${formatDateLabel(start)}〜${formatDateLabel(end)}</span>
+                出勤日数: <strong>${workDays}日</strong>
+                <span style="margin-left:20px;">実労働時間: <strong>${formatHours(totalMinutes)}</strong>（${totalMinutes}分）</span>
+                <span style="margin-left:20px;">有給日数: <strong>${paidLeaveDays}日</strong></span>
+            </div>
+            <div style="font-size:12px; color:#7f8c8d; margin-top:6px;">
+                ※時間は15分単位で丸めています（出勤は切り上げ／退勤は切り捨て）。
+                事由「休憩なし」以外の日は休憩30分を差し引いています（${breakDeductedDays}日分）。
+                出勤・退勤のどちらかが未打刻の日は実労働時間に含まれません。
+            </div>`);
     }
 
     // 対象日をクリックしたとき、その日の内容で申請フォームを埋める
@@ -393,6 +464,11 @@ $(document).ready(function() {
     // 「休憩なし」の申告がある日か
     function isNoBreak(a) {
         return !!a && String(a.reason) === NO_BREAK_CODE;
+    }
+
+    // 「有給」の日か
+    function isPaidLeaveDay(a) {
+        return !!a && String(a.reason) === PAID_LEAVE_CODE;
     }
 
     // 'HH:MM' → 分
